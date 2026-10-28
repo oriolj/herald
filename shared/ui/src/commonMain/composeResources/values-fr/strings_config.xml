@@ -125,4 +125,9 @@
     <string name="config_label_delegation_child_timeout_seconds">Délai des sous-agents</string>
     <string name="config_label_delegation_reasoning_effort">Effort de raisonnement des sous-agents</string>
     <string name="config_label_updates_non_interactive_local_changes">Changements locaux lors des mises à jour</string>
+
+    <!-- Voice: cutting in by talking -->
+    <string name="config_label_voice_barge_in">Interrompre en parlant</string>
+    <string name="config_label_voice_barge_in_threshold_multiplier">Sensibilité d’interruption</string>
+    <string name="config_label_voice_barge_in_grace_seconds">Délai avant interruption</string>
 </resources>

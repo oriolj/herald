@@ -125,4 +125,9 @@
     <string name="config_label_delegation_child_timeout_seconds">Tiempo límite de subagentes</string>
     <string name="config_label_delegation_reasoning_effort">Esfuerzo de razonamiento de subagentes</string>
     <string name="config_label_updates_non_interactive_local_changes">Cambios locales al actualizar en la app</string>
+
+    <!-- Voice: cutting in by talking -->
+    <string name="config_label_voice_barge_in">Interrumpir hablando</string>
+    <string name="config_label_voice_barge_in_threshold_multiplier">Sensibilidad de interrupción</string>
+    <string name="config_label_voice_barge_in_grace_seconds">Margen de interrupción</string>
 </resources>

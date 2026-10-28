@@ -125,4 +125,9 @@
     <string name="config_label_delegation_child_timeout_seconds">Subagent-Timeout</string>
     <string name="config_label_delegation_reasoning_effort">Denkaufwand der Subagenten</string>
     <string name="config_label_updates_non_interactive_local_changes">Lokale Änderungen bei In-App-Updates</string>
+
+    <!-- Voice: cutting in by talking -->
+    <string name="config_label_voice_barge_in">Durch Sprechen unterbrechen</string>
+    <string name="config_label_voice_barge_in_threshold_multiplier">Empfindlichkeit fürs Unterbrechen</string>
+    <string name="config_label_voice_barge_in_grace_seconds">Schonzeit fürs Unterbrechen</string>
 </resources>
