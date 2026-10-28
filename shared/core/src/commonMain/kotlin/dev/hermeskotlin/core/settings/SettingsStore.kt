@@ -108,6 +108,13 @@ data class AppSettings(
      * mute works on it, with the phone's call processing. Off, it plays like media. A GPT-Live call always is one.
      */
     val voiceCallAudio: Boolean = true,
+    /** Talking over a reply cuts in, where the profile has it on too (`voice.barge_in`). */
+    val voiceCutIn: Boolean = true,
+    /**
+     * The least level that can cut in on this phone, whatever the profile's sensitivity makes of the room
+     * (`BargeInSettings.gate`), set from the voice chat's noise meter; 0 for none.
+     */
+    val voiceCutInGate: Float = 0f,
     /** The mic for dictation in the composer and on an empty chat. Off, it goes, and the model name gets the room. */
     val dictation: Boolean = true,
     val dictationEngine: DictationEngine = DictationEngine.Device,

@@ -58,4 +58,22 @@
     <string name="call_thinking">Denkt nach</string>
     <string name="call_working">Arbeitet: %1$s</string>
     <string name="call_speaking">Spricht</string>
+
+    <!-- Cutting in by talking: the voice chat's settings panel and its noise line -->
+    <string name="voice_settings">Spracheinstellungen</string>
+    <string name="voice_hide_settings">Spracheinstellungen ausblenden</string>
+    <string name="voice_cut_in">Durch Sprechen unterbrechen</string>
+    <string name="voice_cut_in_on">Wenn du über Hermes sprichst, hört es auf</string>
+    <string name="voice_cut_in_off">Hermes spricht zu Ende; Überspringen stoppt es</string>
+    <string name="voice_gate_set">Lauter als die Linie zu sprechen unterbricht. Zieh sie, um sie zu verschieben.</string>
+    <string name="voice_gate_none">Keine Linie: Deine Stimme muss sich vom Geräusch im Raum abheben. Zieh, um eine zu setzen.</string>
+    <string name="voice_gate_from_noise">Aus dem Geräusch setzen</string>
+    <string name="voice_gate_clear">Entfernen</string>
+    <string name="voice_noise_meter">Geräuschmesser</string>
+    <string name="voice_gate_line">Linie bei %1$s</string>
+    <string name="voice_gate_line_none">keine</string>
+    <string name="voice_gate_hint_muted">Schalte den Ton an, um den Raum zu hören.</string>
+    <string name="voice_gate_hint_speaking">Warte, bis Hermes fertig ist, und sei dann kurz still.</string>
+    <string name="voice_gate_hint_listen">Sei kurz still, damit es den Raum hört.</string>
+    <string name="voice_gate_hint_heard">Es hat den Raum gehört: Setz die Linie knapp darüber.</string>
 </resources>

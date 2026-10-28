@@ -63,4 +63,22 @@
     <string name="call_thinking">Thinking</string>
     <string name="call_working">Working: %1$s</string>
     <string name="call_speaking">Speaking</string>
+
+    <!-- Cutting in by talking: the voice chat's settings panel and its noise line -->
+    <string name="voice_settings">Voice settings</string>
+    <string name="voice_hide_settings">Hide voice settings</string>
+    <string name="voice_cut_in">Cut in by talking</string>
+    <string name="voice_cut_in_on">Talking over Hermes stops it</string>
+    <string name="voice_cut_in_off">Hermes talks to the end; Skip stops it</string>
+    <string name="voice_gate_set">Talking louder than the line cuts in. Drag it to move it.</string>
+    <string name="voice_gate_none">No line: talking has to stand out from the room’s noise. Drag to set one.</string>
+    <string name="voice_gate_from_noise">Set from the noise</string>
+    <string name="voice_gate_clear">Clear</string>
+    <string name="voice_noise_meter">Noise meter</string>
+    <string name="voice_gate_line">Line at %1$s</string>
+    <string name="voice_gate_line_none">none</string>
+    <string name="voice_gate_hint_muted">Unmute to hear the room.</string>
+    <string name="voice_gate_hint_speaking">Wait for Hermes to finish, then stay quiet a moment.</string>
+    <string name="voice_gate_hint_listen">Stay quiet a moment so it hears the room.</string>
+    <string name="voice_gate_hint_heard">It has heard the room: set the line just over it.</string>
 </resources>

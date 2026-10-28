@@ -266,4 +266,8 @@
     <!-- Voice: the voice chat played through the call channel -->
     <string name="settings_voice_call_audio">Áudio de chamada</string>
     <string name="settings_voice_call_audio_detail">A conversa por voz usa o canal de chamadas do carro ou do fone, para o mudo dele funcionar. Desligado, toca como música.</string>
+
+    <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
+    <string name="settings_voice_cut_in_gate_detail">Falar por cima de uma resposta faz ela parar, assim que estiver mais alto que a linha de ruído definida nas configurações da conversa por voz.</string>
+    <string name="settings_voice_cut_in_detail">Falar por cima de uma resposta faz ela parar. No carro, defina uma linha de ruído nas configurações da conversa por voz.</string>
 </resources>

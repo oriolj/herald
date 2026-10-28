@@ -58,4 +58,22 @@
     <string name="call_thinking">Pensando</string>
     <string name="call_working">Trabajando: %1$s</string>
     <string name="call_speaking">Hablando</string>
+
+    <!-- Cutting in by talking: the voice chat's settings panel and its noise line -->
+    <string name="voice_settings">Ajustes de voz</string>
+    <string name="voice_hide_settings">Ocultar ajustes de voz</string>
+    <string name="voice_cut_in">Interrumpir hablando</string>
+    <string name="voice_cut_in_on">Si hablas encima de Hermes, se detiene</string>
+    <string name="voice_cut_in_off">Hermes habla hasta el final; Saltar lo detiene</string>
+    <string name="voice_gate_set">Hablar más fuerte que la línea interrumpe. Arrástrala para moverla.</string>
+    <string name="voice_gate_none">Sin línea: tu voz tiene que destacar sobre el ruido de la sala. Arrastra para poner una.</string>
+    <string name="voice_gate_from_noise">Poner según el ruido</string>
+    <string name="voice_gate_clear">Quitar</string>
+    <string name="voice_noise_meter">Medidor de ruido</string>
+    <string name="voice_gate_line">Línea en %1$s</string>
+    <string name="voice_gate_line_none">ninguna</string>
+    <string name="voice_gate_hint_muted">Activa el sonido para oír la sala.</string>
+    <string name="voice_gate_hint_speaking">Espera a que Hermes termine y luego quédate en silencio un momento.</string>
+    <string name="voice_gate_hint_listen">Quédate en silencio un momento para que oiga la sala.</string>
+    <string name="voice_gate_hint_heard">Ya ha oído la sala: pon la línea justo por encima.</string>
 </resources>

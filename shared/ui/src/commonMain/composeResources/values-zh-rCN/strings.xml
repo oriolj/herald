@@ -264,4 +264,8 @@
     <!-- Voice: the voice chat played through the call channel -->
     <string name="settings_voice_call_audio">通话音频</string>
     <string name="settings_voice_call_audio_detail">语音对话通过车载或耳机的通话声道播放，这样它们的静音键可以使用。关闭后，它会像音乐一样播放。</string>
+
+    <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
+    <string name="settings_voice_cut_in_gate_detail">在回复时说话，只要声音高于语音对话设置中的噪音线，回复就会停下。</string>
+    <string name="settings_voice_cut_in_detail">在回复时说话会让它停下。在车里，请在语音对话设置中设置一条噪音线。</string>
 </resources>

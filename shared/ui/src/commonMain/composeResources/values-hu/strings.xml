@@ -266,4 +266,8 @@
     <!-- Voice: the voice chat played through the call channel -->
     <string name="settings_voice_call_audio">Hívás hangja</string>
     <string name="settings_voice_call_audio_detail">A hangcsevegés az autó vagy a headset hívási csatornáján szól, így működik a némítása. Kikapcsolva zeneként szól.</string>
+
+    <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
+    <string name="settings_voice_cut_in_gate_detail">Ha egy válasz közben beszélsz, az leáll, amint hangosabb vagy a hangcsevegés beállításaiban megadott zajvonalnál.</string>
+    <string name="settings_voice_cut_in_detail">Ha egy válasz közben beszélsz, az leáll. Autóban állíts be zajvonalat a hangcsevegés beállításaiban.</string>
 </resources>

@@ -58,4 +58,22 @@
     <string name="call_thinking">Pensando</string>
     <string name="call_working">Trabalhando: %1$s</string>
     <string name="call_speaking">Falando</string>
+
+    <!-- Cutting in by talking: the voice chat's settings panel and its noise line -->
+    <string name="voice_settings">Configurações de voz</string>
+    <string name="voice_hide_settings">Ocultar configurações de voz</string>
+    <string name="voice_cut_in">Interromper falando</string>
+    <string name="voice_cut_in_on">Falar por cima do Hermes faz ele parar</string>
+    <string name="voice_cut_in_off">O Hermes fala até o fim; Pular faz ele parar</string>
+    <string name="voice_gate_set">Falar mais alto que a linha interrompe. Arraste para mudá-la de lugar.</string>
+    <string name="voice_gate_none">Sem linha: sua voz precisa se destacar do ruído do ambiente. Arraste para definir uma.</string>
+    <string name="voice_gate_from_noise">Definir pelo ruído</string>
+    <string name="voice_gate_clear">Limpar</string>
+    <string name="voice_noise_meter">Medidor de ruído</string>
+    <string name="voice_gate_line">Linha em %1$s</string>
+    <string name="voice_gate_line_none">nenhuma</string>
+    <string name="voice_gate_hint_muted">Ative o som para ouvir o ambiente.</string>
+    <string name="voice_gate_hint_speaking">Espere o Hermes terminar e fique em silêncio por um momento.</string>
+    <string name="voice_gate_hint_listen">Fique em silêncio por um momento para ele ouvir o ambiente.</string>
+    <string name="voice_gate_hint_heard">Ele já ouviu o ambiente: coloque a linha logo acima.</string>
 </resources>

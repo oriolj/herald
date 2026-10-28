@@ -58,4 +58,22 @@
     <string name="call_thinking">Gondolkodik</string>
     <string name="call_working">Dolgozik: %1$s</string>
     <string name="call_speaking">Beszél</string>
+
+    <!-- Cutting in by talking: the voice chat's settings panel and its noise line -->
+    <string name="voice_settings">Hangbeállítások</string>
+    <string name="voice_hide_settings">Hangbeállítások elrejtése</string>
+    <string name="voice_cut_in">Közbeszólás beszéddel</string>
+    <string name="voice_cut_in_on">Ha Hermes közben beszélsz, abbahagyja</string>
+    <string name="voice_cut_in_off">Hermes végigbeszél; a Kihagyás állítja le</string>
+    <string name="voice_gate_set">A vonalnál hangosabb beszéd közbeszól. Húzd el az áthelyezéséhez.</string>
+    <string name="voice_gate_none">Nincs vonal: a beszédednek ki kell emelkednie a szoba zajából. Húzd, hogy beállíts egyet.</string>
+    <string name="voice_gate_from_noise">Beállítás a zaj alapján</string>
+    <string name="voice_gate_clear">Törlés</string>
+    <string name="voice_noise_meter">Zajmérő</string>
+    <string name="voice_gate_line">Vonal: %1$s</string>
+    <string name="voice_gate_line_none">nincs</string>
+    <string name="voice_gate_hint_muted">Oldd fel a némítást, hogy hallja a szobát.</string>
+    <string name="voice_gate_hint_speaking">Várd meg, amíg Hermes befejezi, aztán maradj csendben egy pillanatig.</string>
+    <string name="voice_gate_hint_listen">Maradj csendben egy pillanatig, hogy hallja a szobát.</string>
+    <string name="voice_gate_hint_heard">Hallotta a szobát: tedd a vonalat épp fölé.</string>
 </resources>

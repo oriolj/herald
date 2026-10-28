@@ -266,4 +266,8 @@
     <!-- Voice: the voice chat played through the call channel -->
     <string name="settings_voice_call_audio">Anruf-Audio</string>
     <string name="settings_voice_call_audio_detail">Ein Sprachchat spricht über den Anrufkanal des Autos oder Headsets, damit dessen Stummschaltung funktioniert. Aus, spielt er wie Musik.</string>
+
+    <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
+    <string name="settings_voice_cut_in_gate_detail">Wenn du über eine Antwort sprichst, hört sie auf, sobald du lauter bist als die Geräuschlinie aus den Einstellungen des Sprachchats.</string>
+    <string name="settings_voice_cut_in_detail">Wenn du über eine Antwort sprichst, hört sie auf. Im Auto setz eine Geräuschlinie in den Einstellungen des Sprachchats.</string>
 </resources>

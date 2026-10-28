@@ -58,4 +58,22 @@
     <string name="call_thinking">Réflexion</string>
     <string name="call_working">Au travail : %1$s</string>
     <string name="call_speaking">Parle</string>
+
+    <!-- Cutting in by talking: the voice chat's settings panel and its noise line -->
+    <string name="voice_settings">Réglages de la voix</string>
+    <string name="voice_hide_settings">Masquer les réglages de la voix</string>
+    <string name="voice_cut_in">Interrompre en parlant</string>
+    <string name="voice_cut_in_on">Parler par-dessus Hermes l’arrête</string>
+    <string name="voice_cut_in_off">Hermes parle jusqu’au bout ; Passer l’arrête</string>
+    <string name="voice_gate_set">Parler plus fort que la ligne interrompt. Faites-la glisser pour la déplacer.</string>
+    <string name="voice_gate_none">Pas de ligne : votre voix doit ressortir du bruit de la pièce. Faites glisser pour en placer une.</string>
+    <string name="voice_gate_from_noise">Régler d’après le bruit</string>
+    <string name="voice_gate_clear">Effacer</string>
+    <string name="voice_noise_meter">Indicateur de bruit</string>
+    <string name="voice_gate_line">Ligne à %1$s</string>
+    <string name="voice_gate_line_none">aucune</string>
+    <string name="voice_gate_hint_muted">Réactivez le micro pour entendre la pièce.</string>
+    <string name="voice_gate_hint_speaking">Attendez qu’Hermes ait fini, puis restez silencieux un instant.</string>
+    <string name="voice_gate_hint_listen">Restez silencieux un instant pour qu’il entende la pièce.</string>
+    <string name="voice_gate_hint_heard">Il a entendu la pièce : placez la ligne juste au-dessus.</string>
 </resources>

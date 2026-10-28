@@ -137,13 +137,18 @@ class StreamedSpeechTest {
 
         override fun finish() = Unit
 
+        /** The detector the last listen was given. */
+        var bargeIn: BargeIn? = null
+
         override suspend fun listenOver(
             bargeIn: BargeIn,
             playing: () -> Boolean,
             onTrip: () -> Unit,
             onLevel: (Float) -> Unit,
             onListening: () -> Unit,
+            onMeter: (Float) -> Unit,
         ): Recording? {
+            this.bargeIn = bargeIn
             listening.update { it + 1 }
             onListening()
             if (heardCut) awaitCancellation()
@@ -363,6 +368,28 @@ class StreamedSpeechTest {
     }
 
     @Test
+    fun thisPhonesGateHoldsTheListenOverTheVoiceAndOffShutsItOut() = runTest {
+        val recorder = CutsIn()
+        val stream = Stream()
+        val setup = chat(recorder = recorder) { stream }
+        setup.voice.setCutIn(true, 0.4f)
+
+        setup.socket.event("message.start")
+        setup.socket.event("message.delta", """{"text":"It was a long day. "}""")
+        stream.appended.first { it.isNotEmpty() }
+        stream.gateway.send(SpeechStreamEvent.Start(sampleRate = 24_000))
+        stream.gateway.send(SpeechStreamEvent.Audio(byteArrayOf(1, 0, 2, 0)))
+        recorder.listening.first { it >= 1 }
+        // Set before the listen or during it, the gate is the detector's.
+        assertEquals(0.4f, recorder.bargeIn!!.gate)
+
+        // Off mid-reply: nothing said reaches the bar from here on.
+        setup.voice.setCutIn(false, 0.4f)
+        assertEquals(Float.MAX_VALUE, recorder.bargeIn!!.gate)
+        setup.voice.stopChat()
+    }
+
+    @Test
     fun talkingWhileTheAgentWorksStopsTheTurn() = runTest {
         val recorder = CutsIn()
         val setup = chat(recorder = recorder, transcripts = listOf("How was your day?", "Never mind that, check the weather")) { null }
@@ -403,6 +430,45 @@ class StreamedSpeechTest {
         // Unmuted, it listens over the agent again.
         setup.voice.toggleMute()
         recorder.listening.first { it >= 2 }
+        setup.voice.stopChat()
+    }
+
+    /** Off when the reply starts, the microphone stays shut; turned on mid-reply, it listens from then. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun cuttingInTurnedOnMidReplyListensFromThen() = runTest {
+        val recorder = CutsIn()
+        val setup = chat(recorder = recorder, transcripts = listOf("How was your day?")) { null }
+        setup.voice.setCutIn(false, 0.4f)
+
+        setup.socket.event("message.start")
+        testScheduler.advanceTimeBy(5_000)
+        testScheduler.runCurrent()
+        assertEquals(0, recorder.listening.value)
+
+        setup.voice.setCutIn(true, 0.4f)
+        recorder.listening.first { it >= 1 }
+        setup.voice.stopChat()
+    }
+
+    /** Turned off while muted, with no detector listening to be told: it stays off, the microphone shut, once unmuted. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun cuttingInTurnedOffWhileMutedStaysOffOnceUnmuted() = runTest {
+        val recorder = CutsIn()
+        val setup = chat(recorder = recorder, transcripts = listOf("How was your day?")) { null }
+        setup.voice.setCutIn(true, 0.4f)
+
+        setup.socket.event("message.start")
+        recorder.listening.first { it >= 1 }
+        setup.voice.toggleMute()
+        setup.voice.chat.first { it.muted && !it.bargeIn }
+        setup.voice.setCutIn(false, 0.4f)
+        setup.voice.toggleMute()
+        testScheduler.advanceTimeBy(5_000)
+        testScheduler.runCurrent()
+
+        assertEquals(1, recorder.listening.value)
         setup.voice.stopChat()
     }
 
