@@ -39,6 +39,7 @@ import com.composables.icons.lucide.PhoneOff
 import dev.hermeskotlin.designsystem.surface3
 import dev.hermeskotlin.ui.voice.VoicePhase
 import dev.hermeskotlin.ui.components.ProvideAppWords
+import dev.hermeskotlin.ui.voice.canMute
 import kotlinx.coroutines.delay
 import kotlin.time.TimeSource
 import com.composeunstyled.Text
@@ -198,8 +199,8 @@ internal fun InCallView(state: PhoneCallState, seconds: Long, onMute: () -> Unit
                 )
             }
         }
-        // A live call mutes from the start; the chained chat once it listens.
-        val mutable = voice.live || voice.phase != VoicePhase.Off && voice.phase != VoicePhase.Connecting
+        // A live call mutes from the start; the chained chat once it listens, unless it's push to talk.
+        val mutable = voice.phase != VoicePhase.Off && canMute(voice)
         Row(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(start = 48.dp, end = 48.dp, bottom = 72.dp),
             horizontalArrangement = if (mutable) Arrangement.SpaceBetween else Arrangement.Center,

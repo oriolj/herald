@@ -1277,6 +1277,8 @@ internal fun ChatView(
                 onCutIn = actions::setVoiceCutIn,
                 onGate = actions::setVoiceGate,
                 onGateFromNoise = actions::setVoiceGateFromNoise,
+                onTalk = actions::talkInVoiceChat,
+                onPushToTalk = actions::setVoicePushToTalk,
             )
         }
         // Files dragged over the chat: it says where they go before they're let go, as a desktop app does.
@@ -1409,6 +1411,7 @@ private fun ColumnScope.Dock(
                 onEnd = actions::stopVoiceChat,
                 onExpand = onExpandVoice,
                 onSendNow = actions::sendVoiceNow,
+                onTalk = actions::talkInVoiceChat,
             )
         }
     } else {

@@ -148,6 +148,9 @@ internal fun VoiceScreen(
     onCutIn: (Boolean) -> Unit = {},
     onGate: (Float) -> Unit = {},
     onGateFromNoise: () -> Unit = {},
+    /** Push to talk's button ([VoiceController.talk]), and the orb with it. */
+    onTalk: () -> Unit = {},
+    onPushToTalk: (Boolean) -> Unit = {},
 ) {
     PlatformBackHandler(enabled = active, onBack = onMinimize)
     // The chained chat's own: a live call's voice model decides when it's been cut in on.
@@ -195,6 +198,8 @@ internal fun VoiceScreen(
                 VoiceTuning(
                     state,
                     meter,
+                    pushToTalk = settings.voicePushToTalk,
+                    onPushToTalk = onPushToTalk,
                     cutIn = settings.voiceCutIn,
                     gate = settings.voiceCutInGate,
                     onCutIn = onCutIn,
@@ -214,7 +219,16 @@ internal fun VoiceScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(if (orb < 120.dp) 12.dp else 22.dp),
             ) {
-                if (orb >= 88.dp) BigOrb(state, Modifier.size(orb))
+                val talk = talkButton(state)
+                val talkLabel = talk?.let { stringResource(it.label) }
+                // Push to talk: the orb is the button too, the biggest thing to hit with a glance.
+                if (orb >= 88.dp) BigOrb(
+                    state,
+                    Modifier.size(orb).then(
+                        if (talk == null) Modifier
+                        else Modifier.clip(CircleShape).clickable(role = Role.Button, onClickLabel = talkLabel, onClick = onTalk),
+                    ),
+                )
                 // No live region: the label flips with every breath you take, and the mic could hear TalkBack say so.
                 Column(
                     Modifier.semantics(mergeDescendants = true) {},
@@ -228,11 +242,12 @@ internal fun VoiceScreen(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    // Mute on the left in a call and a chained chat alike; an empty slot keeps End in the middle.
-                    if (state.phase != VoicePhase.Connecting) {
-                        SideButton(Lucide.Mic.takeUnless { state.muted } ?: Lucide.MicOff, stringResource(Res.string.voice_mute), onMute, on = state.muted, toggle = true)
-                    } else {
-                        Spacer(Modifier.size(52.dp))
+                    // Push to talk's button, else Mute, on the left in a call and a chained chat alike; an empty slot keeps End in the middle.
+                    when {
+                        talk != null -> SideButton(talk.icon, stringResource(talk.label), onTalk, on = talk == TalkButton.Send)
+                        canMute(state) ->
+                            SideButton(Lucide.Mic.takeUnless { state.muted } ?: Lucide.MicOff, stringResource(Res.string.voice_mute), onMute, on = state.muted, toggle = true)
+                        else -> Spacer(Modifier.size(52.dp))
                     }
                     EndButton(onEnd)
                     // Skip and Send now are only there for a moment, so they stand in for Type instead meanwhile.

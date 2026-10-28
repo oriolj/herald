@@ -51,6 +51,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
@@ -61,12 +62,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.flow.update
@@ -99,6 +104,10 @@ data class VoiceChatState(
     val working: String? = null,
     /** Talking over the reply cuts in (the profile's `voice.barge_in`). */
     val bargeIn: Boolean = false,
+    /** Push to talk: the chained chat listens only from a tap on Talk to the next, never on its own. */
+    val pushToTalk: Boolean = false,
+    /** Push to talk, waiting for the tap: the microphone is closed until then. */
+    val waitingToTalk: Boolean = false,
 )
 
 /** The microphone in the voice chat, frame by frame, for the noise meter. */
@@ -180,6 +189,10 @@ class VoiceController(
     @kotlin.concurrent.Volatile private var gate = 0f
     /** The detector listening over the voice now, so a gate moved meanwhile applies at once. */
     @kotlin.concurrent.Volatile private var detector: BargeIn? = null
+    /** Push to talk ([setPushToTalk]); its taps on Talk ([talk]); and whether one is being listened to now. */
+    private val pushToTalk = MutableStateFlow(false)
+    private val talkTaps = Channel<Unit>(Channel.CONFLATED)
+    @kotlin.concurrent.Volatile private var talking = false
 
     private var chatJob: Job? = null
     private var stoppedByUser = false
@@ -256,7 +269,7 @@ class VoiceController(
         // The voice chat has the speaker now.
         stopReading()
         // Connecting while it checks for a live call: nothing listens yet, so Mute isn't offered until it does.
-        _chat.value = VoiceChatState(VoicePhase.Connecting)
+        _chat.value = VoiceChatState(VoicePhase.Connecting, pushToTalk = pushToTalk.value)
         room.clear()
         stoppedByUser = false
         endedElsewhere = false
@@ -462,6 +475,29 @@ class VoiceController(
     }
 
     /**
+     * Push to talk, or hands-free: the chained chat listens only from a tap on [talk] to the next, never on its own,
+     * so neither noise nor a pause it can't find sends anything, and nobody cuts in but with the tap. It applies from
+     * the next listen; one waiting for a tap goes hands-free at once.
+     */
+    fun setPushToTalk(on: Boolean) {
+        pushToTalk.value = on
+        // Push to talk opens the microphone itself.
+        if (on && _chat.value.muted && live == null) toggleMute()
+        _chat.update { if (it.phase == VoicePhase.Off || it.live) it else it.copy(pushToTalk = on) }
+    }
+
+    /**
+     * Push to talk's one button. Waiting, it starts listening; listening, it sends what was said; while Hermes talks
+     * or works, it holds the voice and listens, so what's said next cuts in.
+     */
+    fun talk() {
+        val now = _chat.value
+        if (chatJob?.isActive != true || !now.pushToTalk) return
+        // Send, as the button shows: also a hands-free listen already going when push to talk came on.
+        if (talking || talkButton(now) == TalkButton.Send) recorder.finish() else talkTaps.trySend(Unit)
+    }
+
+    /**
      * This phone's own say on cutting in, beside the profile's: [on] or not at all, and the least level that can
      * ([gate], 0 for none; see [BargeInSettings.gate]). It applies at once, to a listen already going or waiting for it too.
      */
@@ -471,11 +507,15 @@ class VoiceController(
         detector?.gate = if (on) gate else Float.MAX_VALUE
     }
 
-    /** Follows this phone's voice settings as they change: cutting in and its gate ([setCutIn]). */
-    fun follow(settings: Flow<AppSettings?>) {
+    /**
+     * Follows this phone's voice settings as they change: cutting in and its gate ([setCutIn]), and push to talk
+     * ([setPushToTalk]) where [withPushToTalk]: a call that rings stays hands-free.
+     */
+    fun follow(settings: Flow<AppSettings?>, withPushToTalk: Boolean = true) {
         val prefs = settings.filterNotNull()
         // The noise meter moves the gate mid-reply.
         scope.launch { prefs.map { it.voiceCutIn to it.voiceCutInGate }.distinctUntilChanged().collect { (on, gate) -> setCutIn(on, gate) } }
+        if (withPushToTalk) scope.launch { prefs.map { it.voicePushToTalk }.distinctUntilChanged().collect(::setPushToTalk) }
     }
 
     /**
@@ -613,9 +653,15 @@ class VoiceController(
         while (cut == null) {
             // Past a few holds where nobody went on talking, it's a speaker turned right up, its echo over every bar,
             // not a knock: the rest of this reply plays through, without the microphone (#264). With no voice playing
-            // there's no echo, so someone can still cut in while the agent works.
-            if (voice && echoHolds >= MAX_ECHO_HOLDS) {
-                cut = Cut.Done(done.await())
+            // there's no echo, so someone can still cut in while the agent works. Nor with push to talk, whose taps are
+            // never an echo: turned on meanwhile, it takes its tap from then.
+            if (voice && echoHolds >= MAX_ECHO_HOLDS && !pushToTalk.value) {
+                val talk = async { pushToTalk.first { it } }
+                cut = select {
+                    done.onAwait { Cut.Done(it) }
+                    talk.onAwait { null }
+                }
+                talk.cancel()
                 continue
             }
             val tripped = CompletableDeferred<Unit>()
@@ -634,8 +680,9 @@ class VoiceController(
             cut = if (someone) {
                 echoHeld = false
                 heardOver(session, gateway, profile, done, over)?.let { Cut.Over(it) }.also {
-                    // Not counted for a chat that was stopped meanwhile: a new one may have started its own count.
-                    if (it == null && echoHeld && isActive) echoHolds++
+                    // Not counted for a chat that was stopped meanwhile: a new one may have started its own count. Nor
+                    // for a tap on Talk with nothing said after it, which was no echo.
+                    if (it == null && echoHeld && isActive && !pushToTalk.value) echoHolds++
                 }
             } else {
                 Cut.Done(done.await())
@@ -649,31 +696,51 @@ class VoiceController(
      * they do. What they said once they pause, or null when nobody can cut in this turn.
      */
     private suspend fun listenOver(activity: VoiceActivity, tripped: CompletableDeferred<Unit>): Recording? {
+        if (pushToTalk.value) return talkOver(activity, tripped)
         val settings = bargeIn?.await() ?: return null
         if (!settings.enabled || cantListenOver) return null
         while (true) {
             // Muted: the microphone stays shut over the reply too, and listens again once unmuted.
             _chat.first { !it.muted }
-            // Cutting in off on this phone: shut too, until it's turned on, mid-reply or not.
-            cutIn.first { it }
+            // Cutting in off on this phone: shut too, until it's turned on, mid-reply or not, or push to talk comes on.
+            combine(cutIn, pushToTalk) { on, talk -> on || talk }.first { it }
+            if (pushToTalk.value) return talkOver(activity, tripped)
             val detector = BargeIn(settings.copy(gate = gate), activity.silenceMs, roomFloor)
             this.detector = detector
             var cut = false
+            var toPushToTalk = false
             val heard = try {
                 unlessMuted({ cut = true; null }) {
-                    recorder.listenOver(
-                        detector,
-                        playing = { playing.value },
-                        // Offered once the microphone listens, not before.
-                        onListening = { _chat.update { it.copy(bargeIn = true) } },
-                        onTrip = { tripped.complete(Unit) },
-                        onLevel = { level -> _chat.update { if (it.phase == VoicePhase.Listening) it.copy(level = level) else it } },
-                        // On the recorder's thread, before the frame goes to the detector: the bar it's about to be held to.
-                        onMeter = { level ->
-                            val off = !cutIn.value
-                            meter(level, detector.trigger(playing.value).takeUnless { off }, quiet = !playing.value && !detector.tripped)
-                        },
-                    )
+                    coroutineScope {
+                        val listen = async {
+                            recorder.listenOver(
+                                detector,
+                                playing = { playing.value },
+                                // Offered once the microphone listens, not before.
+                                onListening = { _chat.update { it.copy(bargeIn = true) } },
+                                onTrip = { tripped.complete(Unit) },
+                                onLevel = { level -> _chat.update { if (it.phase == VoicePhase.Listening) it.copy(level = level) else it } },
+                                // On the recorder's thread, before the frame goes to the detector: the bar it's about to be held to.
+                                onMeter = { level ->
+                                    val off = !cutIn.value
+                                    meter(level, detector.trigger(playing.value).takeUnless { off }, quiet = !playing.value && !detector.tripped)
+                                },
+                            )
+                        }
+                        // Push to talk coming on stops listening hands-free, unless someone is already cutting in.
+                        val switched = async {
+                            pushToTalk.first { it }
+                            if (tripped.isCompleted) awaitCancellation()
+                        }
+                        select<Recording?> {
+                            listen.onAwait { recording -> recording.also { switched.cancel() } }
+                            switched.onAwait {
+                                listen.cancel()
+                                toPushToTalk = true
+                                null
+                            }
+                        }
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -686,6 +753,7 @@ class VoiceController(
                 // Not offered once the microphone is closed again, as while a question is asked aloud.
                 _chat.update { it.copy(bargeIn = false) }
             }
+            if (toPushToTalk) return talkOver(activity, tripped)
             // Cut off by Mute: nobody cut in. A voice that held already goes on; otherwise it listens once unmuted.
             if (cut) {
                 if (tripped.isCompleted) return null
@@ -696,6 +764,14 @@ class VoiceController(
             if (heard == null) cantListenOver = true
             return heard
         }
+    }
+
+    /** Push to talk over the voice: a tap on Talk holds it, and what's said up to the tap on Send is what cut in. */
+    private suspend fun talkOver(activity: VoiceActivity, tripped: CompletableDeferred<Unit>): Recording? {
+        if (!waitForTalk()) return null
+        tripped.complete(Unit)
+        // Shown as listening by heardOver, which puts back what showed before once it was only a tap.
+        return talkRecording(activity, showListening = false)
     }
 
     /**
@@ -850,7 +926,7 @@ class VoiceController(
             // Muted: the microphone stays shut until it's unmuted, between turns and for a question asked aloud alike.
             _chat.first { !it.muted }
             val recording = try {
-                unlessMuted({ null }) {
+                if (pushToTalk.value && waitForTalk(waiting = true)) talkRecording(activity) else unlessMuted({ null }) {
                     recorder.record(
                         activity,
                         onLevel = { level ->
@@ -908,6 +984,38 @@ class VoiceController(
             onMuted()
         } finally {
             watcher.cancel()
+        }
+    }
+
+    /**
+     * Waits for a tap on Talk, true; false once it's hands-free again instead. A tap from before it waited isn't
+     * for this. [waiting]: the microphone is closed meanwhile, as the screen says.
+     */
+    private suspend fun waitForTalk(waiting: Boolean = false): Boolean {
+        while (talkTaps.tryReceive().isSuccess) Unit
+        if (waiting) _chat.update { it.copy(waitingToTalk = true) }
+        try {
+            return merge(talkTaps.receiveAsFlow().map { true }, pushToTalk.filter { !it }.map { false }).first()
+        } finally {
+            if (waiting) _chat.update { it.copy(waitingToTalk = false) }
+        }
+    }
+
+    /** Push to talk's recording: from the tap until the next, however long the pauses in it. */
+    private suspend fun talkRecording(activity: VoiceActivity, showListening: Boolean = true): Recording {
+        if (showListening) _chat.update { it.copy(phase = VoicePhase.Listening, level = 0f) }
+        talking = true
+        try {
+            return recorder.record(
+                activity.copy(silenceMs = Long.MAX_VALUE, idleMs = 0, maxMs = TALK_MAX_MS),
+                onLevel = { level ->
+                    _chat.update { it.copy(level = level) }
+                    meter(level, bar = null, quiet = false)
+                },
+                onSpeech = { _chat.update { it.copy(hearing = true) } },
+            )
+        } finally {
+            talking = false
         }
     }
 
@@ -1357,6 +1465,8 @@ class VoiceController(
         const val GATE_HEADROOM = 1.5f
         const val MIN_GATE = 0.03f
         const val MAX_GATE = 0.9f
+        /** The longest push to talk listens for when the second tap doesn't come. */
+        const val TALK_MAX_MS = 120_000L
     }
 }
 

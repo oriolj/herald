@@ -38,6 +38,7 @@ import dev.hermeskotlin.designsystem.colors
 import dev.hermeskotlin.designsystem.components.Button
 import dev.hermeskotlin.designsystem.components.ButtonSize
 import dev.hermeskotlin.designsystem.components.ButtonVariant
+import dev.hermeskotlin.designsystem.components.SegmentedControl
 import dev.hermeskotlin.designsystem.components.Surface
 import dev.hermeskotlin.designsystem.components.Switch
 import dev.hermeskotlin.designsystem.surface3
@@ -55,14 +56,16 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * How the voice chat takes being talked over, tuned while it runs, for a car or a noisy room: cutting in on or off,
- * and a meter of what the microphone hears with the gate on it. Talking has to reach the gate to cut in; drag it, or
- * have it set just over the noise heard lately.
+ * How the voice chat listens, tuned while it runs, for a car or a noisy room: hands-free or push to talk, and,
+ * hands-free, cutting in on or off with a meter of what the microphone hears and the gate on it. Talking has to reach
+ * the gate to cut in; drag it, or have it set just over the noise heard lately.
  */
 @Composable
 internal fun VoiceTuning(
     state: VoiceChatState,
     meter: StateFlow<VoiceMeter>,
+    pushToTalk: Boolean,
+    onPushToTalk: (Boolean) -> Unit,
     /** This phone lets talking over a reply cut in. */
     cutIn: Boolean,
     gate: Float,
@@ -73,6 +76,22 @@ internal fun VoiceTuning(
 ) {
     Surface(modifier) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val listenLabels = mapOf(false to stringResource(Res.string.voice_hands_free), true to stringResource(Res.string.voice_push_to_talk))
+            SegmentedControl(
+                options = listOf(false, true),
+                selected = pushToTalk,
+                onSelect = onPushToTalk,
+                optionLabel = { listenLabels.getValue(it) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (pushToTalk) {
+                Text(
+                    stringResource(Res.string.voice_push_to_talk_detail),
+                    style = Theme[typography][caption],
+                    color = Theme[colors][textSecondary],
+                )
+                return@Column
+            }
             Row(
                 Modifier.fillMaxWidth().toggleable(value = cutIn, role = Role.Switch, onValueChange = onCutIn),
                 verticalAlignment = Alignment.CenterVertically,

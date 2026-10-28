@@ -577,6 +577,282 @@ class StreamedSpeechTest {
         setup.voice.stopChat()
     }
 
+    /** Hears one request hands-free; then, pushed to talk, records from a tap until it's told to finish. */
+    private class TalksOver : VoiceRecorder {
+        var recordings = 0
+        val recording = MutableStateFlow(false)
+        private val finished = CompletableDeferred<Unit>()
+        override suspend fun record(activity: VoiceActivity, onLevel: (Float) -> Unit, onSpeech: () -> Unit): Recording {
+            if (recordings++ == 0) {
+                onSpeech()
+                return Recording(byteArrayOf(1, 2, 3), "audio/wav", heardSpeech = true)
+            }
+            if (recordings > 2) awaitCancellation()
+            recording.value = true
+            finished.await()
+            onSpeech()
+            return Recording(byteArrayOf(4, 5, 6), "audio/wav", heardSpeech = true)
+        }
+
+        override fun finish() {
+            finished.complete(Unit)
+        }
+    }
+
+    @Test
+    fun pushToTalkOverTheVoiceHoldsItAndCutsIn() = runTest {
+        val recorder = TalksOver()
+        val stream = Stream()
+        val player = Player(canHold = true)
+        val setup = chat(player = player, recorder = recorder, transcripts = listOf("How was your day?", "Wait, what about tomorrow?")) { stream }
+        setup.voice.setPushToTalk(true)
+
+        setup.socket.event("message.start")
+        setup.socket.event("message.delta", """{"text":"It was a long day. First the meeting ran over. "}""")
+        stream.appended.first { it.isNotEmpty() }
+        stream.gateway.send(SpeechStreamEvent.Start(sampleRate = 24_000))
+        stream.gateway.send(SpeechStreamEvent.Audio(byteArrayOf(1, 0, 2, 0)))
+        setup.voice.chat.first { it.phase == VoicePhase.Speaking }
+
+        // A tap holds the voice and listens; the next sends what was said, which cuts in.
+        setup.voice.talk()
+        recorder.recording.first { it }
+        assertEquals(true, player.holds.first())
+        setup.voice.talk()
+        setup.socket.calls.first { "session.interrupt" in it }
+        setup.socket.event("message.complete", """{"text":"It was a long day.","status":"interrupted"}""")
+        setup.socket.submits.first { it.size == 2 }
+        assertEquals("Wait, what about tomorrow?", setup.socket.submits.value[1]["params"]!!.jsonObject["text"]!!.jsonPrimitive.content)
+        setup.voice.stopChat()
+    }
+
+    /** Hears one request; listens over the reply hands-free ([listening]) until stopped; then records from a tap until told to finish. */
+    private class ListensThenTalks : VoiceRecorder {
+        var recordings = 0
+        val listening = MutableStateFlow(false)
+        val recording = MutableStateFlow(false)
+        private val finished = CompletableDeferred<Unit>()
+        override suspend fun record(activity: VoiceActivity, onLevel: (Float) -> Unit, onSpeech: () -> Unit): Recording {
+            if (recordings++ == 0) {
+                onSpeech()
+                return Recording(byteArrayOf(1, 2, 3), "audio/wav", heardSpeech = true)
+            }
+            if (recordings > 2) awaitCancellation()
+            recording.value = true
+            finished.await()
+            onSpeech()
+            return Recording(byteArrayOf(4, 5, 6), "audio/wav", heardSpeech = true)
+        }
+
+        override fun finish() {
+            finished.complete(Unit)
+        }
+
+        override suspend fun listenOver(
+            bargeIn: BargeIn,
+            playing: () -> Boolean,
+            onTrip: () -> Unit,
+            onLevel: (Float) -> Unit,
+            onListening: () -> Unit,
+            onMeter: (Float) -> Unit,
+        ): Recording? {
+            listening.value = true
+            try {
+                awaitCancellation()
+            } finally {
+                listening.value = false
+            }
+        }
+    }
+
+    @Test
+    fun pushToTalkComingOnOverTheVoiceTakesItsTap() = runTest {
+        val recorder = ListensThenTalks()
+        val stream = Stream()
+        val player = Player(canHold = true)
+        val setup = chat(player = player, recorder = recorder, transcripts = listOf("How was your day?", "Wait, what about tomorrow?")) { stream }
+
+        setup.socket.event("message.start")
+        setup.socket.event("message.delta", """{"text":"It was a long day. First the meeting ran over. "}""")
+        stream.appended.first { it.isNotEmpty() }
+        stream.gateway.send(SpeechStreamEvent.Start(sampleRate = 24_000))
+        stream.gateway.send(SpeechStreamEvent.Audio(byteArrayOf(1, 0, 2, 0)))
+        recorder.listening.first { it }
+
+        // Push to talk on mid-reply: the hands-free listen stops, so noise can't cut in, and Talk works over it.
+        setup.voice.setPushToTalk(true)
+        recorder.listening.first { !it }
+        testScheduler.runCurrent()
+        setup.voice.talk()
+        recorder.recording.first { it }
+        assertEquals(true, player.holds.first())
+        setup.voice.talk()
+        setup.socket.calls.first { "session.interrupt" in it }
+        setup.socket.event("message.complete", """{"text":"It was a long day.","status":"interrupted"}""")
+        setup.socket.submits.first { it.size == 2 }
+        assertEquals("Wait, what about tomorrow?", setup.socket.submits.value[1]["params"]!!.jsonObject["text"]!!.jsonPrimitive.content)
+        setup.voice.stopChat()
+    }
+
+    /** Cutting in off, nothing listens over the reply: push to talk coming on mid-reply still takes its tap. */
+    @Test
+    fun pushToTalkComingOnWithCuttingInOffTakesItsTap() = runTest {
+        val recorder = ListensThenTalks()
+        val stream = Stream()
+        val player = Player(canHold = true)
+        val setup = chat(player = player, recorder = recorder, transcripts = listOf("How was your day?", "Wait, what about tomorrow?")) { stream }
+
+        setup.voice.setCutIn(false, 0f)
+        setup.socket.event("message.start")
+        setup.socket.event("message.delta", """{"text":"It was a long day. First the meeting ran over. "}""")
+        stream.appended.first { it.isNotEmpty() }
+        stream.gateway.send(SpeechStreamEvent.Start(sampleRate = 24_000))
+        stream.gateway.send(SpeechStreamEvent.Audio(byteArrayOf(1, 0, 2, 0)))
+        testScheduler.runCurrent()
+        assertFalse(recorder.listening.value)
+
+        setup.voice.setPushToTalk(true)
+        testScheduler.runCurrent()
+        setup.voice.talk()
+        recorder.recording.first { it }
+        assertEquals(true, player.holds.first())
+        setup.voice.talk()
+        setup.socket.calls.first { "session.interrupt" in it }
+        setup.socket.event("message.complete", """{"text":"It was a long day.","status":"interrupted"}""")
+        setup.socket.submits.first { it.size == 2 }
+        assertEquals("Wait, what about tomorrow?", setup.socket.submits.value[1]["params"]!!.jsonObject["text"]!!.jsonPrimitive.content)
+        setup.voice.stopChat()
+    }
+
+    /** Hears one request hands-free; then records from each tap until told to finish, the first [empty] with nothing said. */
+    private class TapsOver(val empty: Int) : VoiceRecorder {
+        var recordings = 0
+        val taps = MutableStateFlow(0)
+        private var finished = CompletableDeferred<Unit>()
+        override suspend fun record(activity: VoiceActivity, onLevel: (Float) -> Unit, onSpeech: () -> Unit): Recording {
+            if (recordings++ == 0) {
+                onSpeech()
+                return Recording(byteArrayOf(1, 2, 3), "audio/wav", heardSpeech = true)
+            }
+            val n = taps.updateAndGet { it + 1 }
+            if (n > empty + 1) awaitCancellation()
+            finished.await()
+            finished = CompletableDeferred()
+            if (n > empty) onSpeech()
+            return Recording(byteArrayOf(4, 5, 6), "audio/wav", heardSpeech = n > empty)
+        }
+
+        override fun finish() {
+            finished.complete(Unit)
+        }
+    }
+
+    /** Taps on Talk with nothing said after them are no echo: however many there are, the next tap is still taken. */
+    @Test
+    fun pushToTalkTapsWithNothingSaidDontStopItListening() = runTest {
+        val recorder = TapsOver(empty = 2)
+        val stream = Stream()
+        val player = Player(canHold = true)
+        val setup = chat(player = player, recorder = recorder, transcripts = listOf("How was your day?", "", "", "Wait, what about tomorrow?")) { stream }
+        setup.voice.setPushToTalk(true)
+
+        setup.socket.event("message.start")
+        setup.socket.event("message.delta", """{"text":"It was a long day. First the meeting ran over. "}""")
+        stream.appended.first { it.isNotEmpty() }
+        stream.gateway.send(SpeechStreamEvent.Start(sampleRate = 24_000))
+        stream.gateway.send(SpeechStreamEvent.Audio(byteArrayOf(1, 0, 2, 0)))
+        setup.voice.chat.first { it.phase == VoicePhase.Speaking }
+        testScheduler.runCurrent()
+
+        // Two taps with nothing said: the voice holds and goes on each time.
+        repeat(2) { i ->
+            setup.voice.talk()
+            recorder.taps.first { it == i + 1 }
+            setup.voice.talk()
+            setup.voice.chat.first { it.phase == VoicePhase.Speaking && !it.hearing }
+            testScheduler.runCurrent()
+        }
+        assertEquals(1, setup.socket.submits.value.size)
+
+        setup.voice.talk()
+        recorder.taps.first { it == 3 }
+        setup.voice.talk()
+        setup.socket.calls.first { "session.interrupt" in it }
+        setup.socket.event("message.complete", """{"text":"It was a long day.","status":"interrupted"}""")
+        setup.socket.submits.first { it.size == 2 }
+        assertEquals("Wait, what about tomorrow?", setup.socket.submits.value[1]["params"]!!.jsonObject["text"]!!.jsonPrimitive.content)
+        setup.voice.stopChat()
+    }
+
+    /** A speaker turned right up: each listen over the voice trips on its echo, up to [times]; then records from a tap. */
+    private class EchoesThenTalks(val times: Int) : VoiceRecorder {
+        var recordings = 0
+        val listening = MutableStateFlow(0)
+        val recording = MutableStateFlow(false)
+        private val finished = CompletableDeferred<Unit>()
+        override suspend fun record(activity: VoiceActivity, onLevel: (Float) -> Unit, onSpeech: () -> Unit): Recording {
+            if (recordings++ == 0) {
+                onSpeech()
+                return Recording(byteArrayOf(1, 2, 3), "audio/wav", heardSpeech = true)
+            }
+            if (recordings > 2) awaitCancellation()
+            recording.value = true
+            finished.await()
+            onSpeech()
+            return Recording(byteArrayOf(4, 5, 6), "audio/wav", heardSpeech = true)
+        }
+
+        override fun finish() {
+            finished.complete(Unit)
+        }
+
+        override suspend fun listenOver(
+            bargeIn: BargeIn,
+            playing: () -> Boolean,
+            onTrip: () -> Unit,
+            onLevel: (Float) -> Unit,
+            onListening: () -> Unit,
+            onMeter: (Float) -> Unit,
+        ): Recording? {
+            val n = listening.updateAndGet { it + 1 }
+            onListening()
+            if (n > times) awaitCancellation()
+            while (!playing()) delay(10)
+            onTrip()
+            return Recording(byteArrayOf(4, 5, 6), "audio/wav", heardSpeech = false)
+        }
+    }
+
+    /** The rest of a reply playing through after its echo holds: push to talk turned on then still takes its tap. */
+    @Test
+    fun pushToTalkComingOnAfterEchoHoldsTakesItsTap() = runTest {
+        val recorder = EchoesThenTalks(times = 3)
+        val stream = Stream()
+        val player = Player(canHold = true)
+        val setup = chat(player = player, recorder = recorder, transcripts = listOf("How was your day?", "", "", "Wait, what about tomorrow?")) { stream }
+
+        setup.socket.event("message.start")
+        setup.socket.event("message.delta", """{"text":"It was a long day. First the meeting ran over. "}""")
+        stream.appended.first { it.isNotEmpty() }
+        stream.gateway.send(SpeechStreamEvent.Start(sampleRate = 24_000))
+        stream.gateway.send(SpeechStreamEvent.Audio(byteArrayOf(1, 0, 2, 0)))
+        recorder.listening.first { it >= 2 }
+        advanceTimeBy(1_000)
+        // Two echo holds: the microphone is off for the rest of the reply.
+        assertEquals(2, recorder.listening.value)
+
+        setup.voice.setPushToTalk(true)
+        testScheduler.runCurrent()
+        setup.voice.talk()
+        recorder.recording.first { it }
+        setup.voice.talk()
+        setup.socket.calls.first { "session.interrupt" in it }
+        setup.socket.event("message.complete", """{"text":"It was a long day.","status":"interrupted"}""")
+        setup.socket.submits.first { it.size == 2 }
+        assertEquals("Wait, what about tomorrow?", setup.socket.submits.value[1]["params"]!!.jsonObject["text"]!!.jsonPrimitive.content)
+        setup.voice.stopChat()
+    }
+
     @Test
     fun talkingWhileTheAgentWorksStopsTheTurn() = runTest {
         val recorder = CutsIn()
