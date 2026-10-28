@@ -124,4 +124,9 @@
     <string name="config_label_delegation_child_timeout_seconds">子代理超时</string>
     <string name="config_label_delegation_reasoning_effort">子代理推理强度</string>
     <string name="config_label_updates_non_interactive_local_changes">应用内更新时的本地更改</string>
+
+    <!-- Voice: cutting in by talking -->
+    <string name="config_label_voice_barge_in">说话即可打断</string>
+    <string name="config_label_voice_barge_in_threshold_multiplier">打断灵敏度</string>
+    <string name="config_label_voice_barge_in_grace_seconds">打断缓冲时间</string>
 </resources>
