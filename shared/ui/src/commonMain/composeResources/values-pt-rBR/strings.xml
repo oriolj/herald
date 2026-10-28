@@ -289,4 +289,9 @@
     <string name="managed_update_restart_title">Reiniciar o Kyllene?</string>
     <string name="managed_update_restart_warning">Encerre as chamadas e salve seu trabalho. Reiniciar fecha todas as janelas; alterações e anexos não salvos podem ser perdidos.</string>
     <string name="managed_update_restart_now">Reiniciar agora</string>
+
+
+    <!-- Voice: keeping the screen on during a voice chat -->
+    <string name="settings_voice_keep_screen_on">Manter a tela ligada</string>
+    <string name="settings_voice_keep_screen_on_detail">Durante uma conversa por voz, para acompanhá-la com o telefone em um suporte.</string>
 </resources>

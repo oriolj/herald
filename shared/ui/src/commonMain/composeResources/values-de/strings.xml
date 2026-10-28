@@ -289,4 +289,9 @@
     <string name="managed_update_restart_title">Kyllene neu starten?</string>
     <string name="managed_update_restart_warning">Beende Anrufe und speichere deine Arbeit. Der Neustart schließt alle Fenster; ungespeicherte Änderungen und Anhänge können verloren gehen.</string>
     <string name="managed_update_restart_now">Jetzt neu starten</string>
+
+
+    <!-- Voice: keeping the screen on during a voice chat -->
+    <string name="settings_voice_keep_screen_on">Bildschirm anlassen</string>
+    <string name="settings_voice_keep_screen_on_detail">Während eines Sprachchats, damit du ihm mit dem Telefon in einer Halterung folgen kannst.</string>
 </resources>

@@ -287,4 +287,9 @@
     <string name="managed_update_restart_title">重启 Kyllene？</string>
     <string name="managed_update_restart_warning">请结束通话并保存工作。重启将关闭所有窗口，未保存的更改和附件可能会丢失。</string>
     <string name="managed_update_restart_now">立即重启</string>
+
+
+    <!-- Voice: keeping the screen on during a voice chat -->
+    <string name="settings_voice_keep_screen_on">保持屏幕常亮</string>
+    <string name="settings_voice_keep_screen_on_detail">在语音对话期间保持常亮，方便把手机放在支架上跟着看。</string>
 </resources>

@@ -289,4 +289,9 @@
     <string name="managed_update_restart_title">Újraindítod a Kyllene alkalmazást?</string>
     <string name="managed_update_restart_warning">Fejezd be a hívásokat és mentsd a munkád. Az újraindítás minden ablakot bezár; a nem mentett változások és mellékletek elveszhetnek.</string>
     <string name="managed_update_restart_now">Újraindítás most</string>
+
+
+    <!-- Voice: keeping the screen on during a voice chat -->
+    <string name="settings_voice_keep_screen_on">Képernyő bekapcsolva tartása</string>
+    <string name="settings_voice_keep_screen_on_detail">Hangcsevegés közben, hogy tartóban lévő telefonnal is követhesd.</string>
 </resources>

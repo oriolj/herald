@@ -289,4 +289,9 @@
     <string name="managed_update_restart_title">Restart Kyllene?</string>
     <string name="managed_update_restart_warning">Finish calls and save your work. Restart closes all windows; unsaved changes and attachments may be lost.</string>
     <string name="managed_update_restart_now">Restart now</string>
+
+
+    <!-- Voice: keeping the screen on during a voice chat -->
+    <string name="settings_voice_keep_screen_on">Keep the screen on</string>
+    <string name="settings_voice_keep_screen_on_detail">During a voice chat, so you can follow it with the phone in a holder.</string>
 </resources>
