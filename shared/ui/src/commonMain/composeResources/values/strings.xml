@@ -257,4 +257,9 @@
         <item quantity="one">%1$d of %2$d shown.</item>
         <item quantity="other">%1$d of %2$d shown.</item>
     </plurals>
+
+
+    <!-- Voice: keeping the screen on during a voice chat -->
+    <string name="settings_voice_keep_screen_on">Keep the screen on</string>
+    <string name="settings_voice_keep_screen_on_detail">During a voice chat, so you can follow it with the phone in a holder.</string>
 </resources>

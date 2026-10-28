@@ -255,4 +255,9 @@
     <plurals name="settings_sidebar_pages_count">
         <item quantity="other">显示 %1$d 个，共 %2$d 个。</item>
     </plurals>
+
+
+    <!-- Voice: keeping the screen on during a voice chat -->
+    <string name="settings_voice_keep_screen_on">保持屏幕常亮</string>
+    <string name="settings_voice_keep_screen_on_detail">在语音对话期间保持常亮，方便把手机放在支架上跟着看。</string>
 </resources>

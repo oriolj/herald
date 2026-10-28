@@ -257,4 +257,9 @@
         <item quantity="one">%2$d közül %1$d látható.</item>
         <item quantity="other">%2$d közül %1$d látható.</item>
     </plurals>
+
+
+    <!-- Voice: keeping the screen on during a voice chat -->
+    <string name="settings_voice_keep_screen_on">Képernyő bekapcsolva tartása</string>
+    <string name="settings_voice_keep_screen_on_detail">Hangcsevegés közben, hogy tartóban lévő telefonnal is követhesd.</string>
 </resources>

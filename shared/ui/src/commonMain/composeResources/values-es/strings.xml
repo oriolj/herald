@@ -257,4 +257,9 @@
         <item quantity="one">%1$d de %2$d visible.</item>
         <item quantity="other">%1$d de %2$d visibles.</item>
     </plurals>
+
+
+    <!-- Voice: keeping the screen on during a voice chat -->
+    <string name="settings_voice_keep_screen_on">Mantener la pantalla encendida</string>
+    <string name="settings_voice_keep_screen_on_detail">Durante un chat de voz, para seguirlo con el teléfono en un soporte.</string>
 </resources>

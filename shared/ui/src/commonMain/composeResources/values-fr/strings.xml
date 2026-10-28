@@ -257,4 +257,9 @@
         <item quantity="one">%1$d sur %2$d affichée.</item>
         <item quantity="other">%1$d sur %2$d affichées.</item>
     </plurals>
+
+
+    <!-- Voice: keeping the screen on during a voice chat -->
+    <string name="settings_voice_keep_screen_on">Garder l’écran allumé</string>
+    <string name="settings_voice_keep_screen_on_detail">Pendant un chat vocal, pour le suivre avec le téléphone sur un support.</string>
 </resources>

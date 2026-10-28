@@ -733,6 +733,13 @@ internal fun SettingsView(
                             optionLabel = { pauseLabels.getValue(it) },
                         )
                     }
+                    Divider()
+                    SwitchRow(
+                        title = stringResource(Res.string.settings_voice_keep_screen_on),
+                        detail = stringResource(Res.string.settings_voice_keep_screen_on_detail),
+                        checked = settings.voiceKeepScreenOn,
+                        onCheckedChange = { on -> onUpdate { it.copy(voiceKeepScreenOn = on) } },
+                    )
                 }
 
                 if (isDesktop) Section(stringResource(Res.string.settings_section_desktop)) {
