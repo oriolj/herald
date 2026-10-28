@@ -76,4 +76,15 @@
     <string name="voice_gate_hint_speaking">Attendez qu’Hermes ait fini, puis restez silencieux un instant.</string>
     <string name="voice_gate_hint_listen">Restez silencieux un instant pour qu’il entende la pièce.</string>
     <string name="voice_gate_hint_heard">Il a entendu la pièce : placez la ligne juste au-dessus.</string>
+
+    <!-- Push to talk -->
+    <string name="voice_tap_to_talk">Touchez pour parler</string>
+    <string name="voice_talk">Parler</string>
+    <string name="voice_send">Envoyer</string>
+    <string name="voice_hint_tap_send">Touchez Envoyer quand vous avez fini</string>
+    <string name="voice_hint_push_to_talk">Touchez le micro, parlez, touchez Envoyer · dites « stop » pour finir</string>
+    <string name="voice_hint_tap_to_talk_over">Touchez le micro pour parler par-dessus</string>
+    <string name="voice_hands_free">Mains libres</string>
+    <string name="voice_push_to_talk">Appuyer pour parler</string>
+    <string name="voice_push_to_talk_detail">Le micro n’est ouvert que du toucher sur lui jusqu’au toucher sur Envoyer : le bruit n’envoie rien, et seul un toucher interrompt.</string>
 </resources>

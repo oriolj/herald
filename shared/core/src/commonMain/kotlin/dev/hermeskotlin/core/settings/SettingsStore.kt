@@ -115,6 +115,8 @@ data class AppSettings(
      * (`BargeInSettings.gate`), set from the voice chat's noise meter; 0 for none.
      */
     val voiceCutInGate: Float = 0f,
+    /** The chained voice chat listens only from a tap on Talk to the tap on Send, never on its own. */
+    val voicePushToTalk: Boolean = false,
     /** The mic for dictation in the composer and on an empty chat. Off, it goes, and the model name gets the room. */
     val dictation: Boolean = true,
     val dictationEngine: DictationEngine = DictationEngine.Device,

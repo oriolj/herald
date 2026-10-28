@@ -81,4 +81,15 @@
     <string name="voice_gate_hint_speaking">Wait for Hermes to finish, then stay quiet a moment.</string>
     <string name="voice_gate_hint_listen">Stay quiet a moment so it hears the room.</string>
     <string name="voice_gate_hint_heard">It has heard the room: set the line just over it.</string>
+
+    <!-- Push to talk -->
+    <string name="voice_tap_to_talk">Tap to talk</string>
+    <string name="voice_talk">Talk</string>
+    <string name="voice_send">Send</string>
+    <string name="voice_hint_tap_send">Tap send when you’re done</string>
+    <string name="voice_hint_push_to_talk">Tap the microphone, talk, tap send · say “stop” to end</string>
+    <string name="voice_hint_tap_to_talk_over">Tap the microphone to talk over it</string>
+    <string name="voice_hands_free">Hands-free</string>
+    <string name="voice_push_to_talk">Push to talk</string>
+    <string name="voice_push_to_talk_detail">The microphone opens only from a tap on it to the tap on Send, so noise sends nothing and nothing cuts in but a tap.</string>
 </resources>

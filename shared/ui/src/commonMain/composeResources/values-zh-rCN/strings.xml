@@ -268,4 +268,9 @@
     <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
     <string name="settings_voice_cut_in_gate_detail">在回复时说话，只要声音高于语音对话设置中的噪音线，回复就会停下。</string>
     <string name="settings_voice_cut_in_detail">在回复时说话会让它停下。在车里，请在语音对话设置中设置一条噪音线。</string>
+
+    <!-- Voice: how the voice chat listens (the choices are voice_hands_free and voice_push_to_talk) -->
+    <string name="settings_voice_listens">语音对话的收听方式</string>
+    <string name="settings_voice_push_to_talk_detail">从点按麦克风到点按发送：噪音不会发送任何内容，只有点按才能打断。</string>
+    <string name="settings_voice_hands_free_detail">自动收听，你一停顿就发送。</string>
 </resources>

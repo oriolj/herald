@@ -76,4 +76,15 @@
     <string name="voice_gate_hint_speaking">等 Hermes 说完，然后安静片刻。</string>
     <string name="voice_gate_hint_listen">请安静片刻，让它听取环境声音。</string>
     <string name="voice_gate_hint_heard">它已听到环境声音：把线设在略高于它的位置。</string>
+
+    <!-- Push to talk -->
+    <string name="voice_tap_to_talk">点按说话</string>
+    <string name="voice_talk">说话</string>
+    <string name="voice_send">发送</string>
+    <string name="voice_hint_tap_send">说完后点按发送</string>
+    <string name="voice_hint_push_to_talk">点按麦克风，说话，再点按发送 · 说“stop”结束</string>
+    <string name="voice_hint_tap_to_talk_over">点按麦克风即可插话</string>
+    <string name="voice_hands_free">免提</string>
+    <string name="voice_push_to_talk">按键说话</string>
+    <string name="voice_push_to_talk_detail">麦克风只在你点按它到点按发送之间打开：噪音不会发送任何内容，只有点按才能打断。</string>
 </resources>

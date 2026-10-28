@@ -76,4 +76,15 @@
     <string name="voice_gate_hint_speaking">Espera a que Hermes termine y luego quédate en silencio un momento.</string>
     <string name="voice_gate_hint_listen">Quédate en silencio un momento para que oiga la sala.</string>
     <string name="voice_gate_hint_heard">Ya ha oído la sala: pon la línea justo por encima.</string>
+
+    <!-- Push to talk -->
+    <string name="voice_tap_to_talk">Toca para hablar</string>
+    <string name="voice_talk">Hablar</string>
+    <string name="voice_send">Enviar</string>
+    <string name="voice_hint_tap_send">Toca Enviar cuando termines</string>
+    <string name="voice_hint_push_to_talk">Toca el micrófono, habla, toca Enviar · di «stop» para terminar</string>
+    <string name="voice_hint_tap_to_talk_over">Toca el micrófono para hablar encima</string>
+    <string name="voice_hands_free">Manos libres</string>
+    <string name="voice_push_to_talk">Pulsar para hablar</string>
+    <string name="voice_push_to_talk_detail">El micrófono solo se abre desde que lo tocas hasta que tocas Enviar: el ruido no envía nada y solo un toque interrumpe.</string>
 </resources>

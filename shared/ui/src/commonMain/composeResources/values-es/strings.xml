@@ -270,4 +270,9 @@
     <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
     <string name="settings_voice_cut_in_gate_detail">Hablar encima de una respuesta la detiene, en cuanto suena más fuerte que la línea de ruido fijada en los ajustes del chat de voz.</string>
     <string name="settings_voice_cut_in_detail">Hablar encima de una respuesta la detiene. En el coche, fija una línea de ruido en los ajustes del chat de voz.</string>
+
+    <!-- Voice: how the voice chat listens (the choices are voice_hands_free and voice_push_to_talk) -->
+    <string name="settings_voice_listens">El chat de voz escucha</string>
+    <string name="settings_voice_push_to_talk_detail">Desde que tocas el micrófono hasta que tocas Enviar: el ruido no envía nada y solo un toque interrumpe.</string>
+    <string name="settings_voice_hands_free_detail">Solo, y envía en cuanto haces una pausa.</string>
 </resources>

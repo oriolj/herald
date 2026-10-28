@@ -76,4 +76,15 @@
     <string name="voice_gate_hint_speaking">Várd meg, amíg Hermes befejezi, aztán maradj csendben egy pillanatig.</string>
     <string name="voice_gate_hint_listen">Maradj csendben egy pillanatig, hogy hallja a szobát.</string>
     <string name="voice_gate_hint_heard">Hallotta a szobát: tedd a vonalat épp fölé.</string>
+
+    <!-- Push to talk -->
+    <string name="voice_tap_to_talk">Koppints a beszédhez</string>
+    <string name="voice_talk">Beszéd</string>
+    <string name="voice_send">Küldés</string>
+    <string name="voice_hint_tap_send">Koppints a Küldésre, ha végeztél</string>
+    <string name="voice_hint_push_to_talk">Koppints a mikrofonra, beszélj, koppints a Küldésre · a befejezéshez mondd: „stop”</string>
+    <string name="voice_hint_tap_to_talk_over">Koppints a mikrofonra, hogy közbeszólj</string>
+    <string name="voice_hands_free">Kihangosítva</string>
+    <string name="voice_push_to_talk">Nyomd és beszélj</string>
+    <string name="voice_push_to_talk_detail">A mikrofon csak a rá koppintástól a Küldésre koppintásig van nyitva: a zaj semmit sem küld, és csak egy koppintás szól közbe.</string>
 </resources>

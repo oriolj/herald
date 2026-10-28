@@ -723,6 +723,19 @@ internal fun SettingsView(
                         }
                         Divider()
                     }
+                    Field(
+                        stringResource(Res.string.settings_voice_listens),
+                        detail = stringResource(if (settings.voicePushToTalk) Res.string.settings_voice_push_to_talk_detail else Res.string.settings_voice_hands_free_detail),
+                    ) {
+                        val listenLabels = mapOf(false to stringResource(Res.string.voice_hands_free), true to stringResource(Res.string.voice_push_to_talk))
+                        SegmentedControl(
+                            options = listOf(false, true),
+                            selected = settings.voicePushToTalk,
+                            onSelect = { on -> onUpdate { it.copy(voicePushToTalk = on) } },
+                            optionLabel = { listenLabels.getValue(it) },
+                        )
+                    }
+                    Divider()
                     Field(stringResource(Res.string.settings_voice_pause), detail = stringResource(Res.string.settings_voice_pause_detail)) {
                         // The control takes its labels as a plain lambda, so the words are resolved first.
                         val pauseLabels = VoicePause.entries.associateWith { voicePauseLabel(it) }

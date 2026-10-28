@@ -270,4 +270,9 @@
     <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
     <string name="settings_voice_cut_in_gate_detail">Parler par-dessus une réponse l’arrête, dès que c’est plus fort que la ligne de bruit réglée dans les réglages du chat vocal.</string>
     <string name="settings_voice_cut_in_detail">Parler par-dessus une réponse l’arrête. En voiture, réglez une ligne de bruit dans les réglages du chat vocal.</string>
+
+    <!-- Voice: how the voice chat listens (the choices are voice_hands_free and voice_push_to_talk) -->
+    <string name="settings_voice_listens">Le chat vocal écoute</string>
+    <string name="settings_voice_push_to_talk_detail">Du toucher sur le micro jusqu’au toucher sur Envoyer : le bruit n’envoie rien, et seul un toucher interrompt.</string>
+    <string name="settings_voice_hands_free_detail">Tout seul, et envoie dès que vous faites une pause.</string>
 </resources>

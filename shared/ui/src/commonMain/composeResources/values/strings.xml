@@ -270,4 +270,9 @@
     <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
     <string name="settings_voice_cut_in_gate_detail">Talking over a reply stops it, once it’s louder than the noise line set in the voice chat’s settings.</string>
     <string name="settings_voice_cut_in_detail">Talking over a reply stops it. In a car, set a noise line from the voice chat’s settings.</string>
+
+    <!-- Voice: how the voice chat listens (the choices are voice_hands_free and voice_push_to_talk) -->
+    <string name="settings_voice_listens">Voice chat listens</string>
+    <string name="settings_voice_push_to_talk_detail">From a tap on the microphone to the tap on Send: noise sends nothing, and only a tap cuts in.</string>
+    <string name="settings_voice_hands_free_detail">On its own, and sends once you pause.</string>
 </resources>

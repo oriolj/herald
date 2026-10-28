@@ -29,6 +29,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.TestScope
@@ -543,6 +544,109 @@ class VoiceControllerTest {
         assertTrue(!voice.meter.value.roomHeard)
         assertNull(voice.gateFromNoise())
         voice.stopChat()
+    }
+
+    /** Records until it's told to finish, keeping how it was asked to. */
+    private class TalkRecorder : VoiceRecorder {
+        var recordings = 0
+        var activity: VoiceActivity? = null
+        val recording = MutableStateFlow(false)
+        private var finished = CompletableDeferred<Unit>()
+        override suspend fun record(activity: VoiceActivity, onLevel: (Float) -> Unit, onSpeech: () -> Unit): Recording {
+            recordings++
+            this.activity = activity
+            recording.value = true
+            try {
+                finished.await()
+            } finally {
+                recording.value = false
+            }
+            finished = CompletableDeferred()
+            onSpeech()
+            return Recording(byteArrayOf(1, 2, 3), "audio/wav", heardSpeech = true)
+        }
+
+        override fun finish() {
+            finished.complete(Unit)
+        }
+    }
+
+    @Test
+    fun pushToTalkListensOnlyFromATapToTheNext() = runTest {
+        val requests = Requests()
+        val recorder = TalkRecorder()
+        val voice = VoiceController(audio("Stop.", requests), recorder, FakePlayer(), backgroundScope, backgroundScope)
+        voice.setPushToTalk(true)
+
+        voice.startChat(offlineSession(), gateway, null)
+        voice.chat.first { it.waitingToTalk }
+        assertEquals(VoiceHint.PushToTalk, hint(voice.chat.value))
+        assertEquals(TalkButton.Talk, talkButton(voice.chat.value))
+        // Long past when a hands-free listen would have given up and listened again: the microphone stays closed.
+        testScheduler.advanceTimeBy(30_000)
+        assertEquals(0, recorder.recordings)
+
+        voice.talk()
+        recorder.recording.first { it }
+        // No pause ends it, and no silence gives up on it: only the second tap.
+        assertEquals(0L, recorder.activity!!.idleMs)
+        assertEquals(Long.MAX_VALUE, recorder.activity!!.silenceMs)
+        assertEquals(TalkButton.Send, talkButton(voice.chat.value))
+
+        voice.talk()
+        // What was said goes ("stop", which ends the chat).
+        voice.chat.first { it.phase == VoicePhase.Off }
+        assertEquals(1, recorder.recordings)
+        assertTrue(requests.any { it.url.encodedPath == "/api/audio/transcribe" })
+    }
+
+    @Test
+    fun goingHandsFreeWhileWaitingToTalkListensAtOnce() = runTest {
+        val recorder = TalkRecorder()
+        val voice = VoiceController(audio("unused", Requests()), recorder, FakePlayer(), backgroundScope, backgroundScope)
+        voice.setPushToTalk(true)
+        voice.startChat(offlineSession(), gateway, null)
+        voice.chat.first { it.waitingToTalk }
+
+        voice.setPushToTalk(false)
+
+        recorder.recording.first { it }
+        assertEquals(VoiceActivity().idleMs, recorder.activity!!.idleMs)
+        assertTrue(!voice.chat.value.pushToTalk && !voice.chat.value.waitingToTalk)
+        // Hands-free, there's no button to talk with, and Mute is back.
+        assertNull(talkButton(voice.chat.value))
+        voice.stopChat()
+    }
+
+    @Test
+    fun pushToTalkComingOnMidListenSendsWithItsButton() = runTest {
+        val recorder = TalkRecorder()
+        val voice = VoiceController(audio("Stop.", Requests()), recorder, FakePlayer(), backgroundScope, backgroundScope)
+        voice.startChat(offlineSession(), gateway, null)
+        recorder.recording.first { it }
+
+        voice.setPushToTalk(true)
+
+        // The listen going on is hands-free, but the button reads Send, and sends ("stop", which ends the chat).
+        assertEquals(TalkButton.Send, talkButton(voice.chat.value))
+        voice.talk()
+        voice.chat.first { it.phase == VoicePhase.Off }
+        assertEquals(1, recorder.recordings)
+    }
+
+    @Test
+    fun pushToTalksButtonFollowsTheChat() {
+        val ptt = VoiceChatState(VoicePhase.Listening, pushToTalk = true)
+        assertEquals(TalkButton.Talk, talkButton(ptt.copy(waitingToTalk = true)))
+        assertEquals(TalkButton.Send, talkButton(ptt))
+        // Over Hermes talking or at work, a tap talks over it.
+        assertEquals(TalkButton.Talk, talkButton(ptt.copy(phase = VoicePhase.Speaking)))
+        assertEquals(TalkButton.Talk, talkButton(ptt.copy(phase = VoicePhase.Thinking)))
+        assertNull(talkButton(ptt.copy(phase = VoicePhase.Transcribing)))
+        // Hands-free, or a live call: no such button. Nor Send now in push to talk.
+        assertNull(talkButton(VoiceChatState(VoicePhase.Listening)))
+        assertNull(talkButton(ptt.copy(live = true)))
+        assertTrue(!canSendNow(ptt.copy(hearing = true)))
     }
 
     /** A chat that never connects: these voice chats end before anything is sent. */

@@ -1438,6 +1438,10 @@ class ChatViewModel(
 
     override fun setVoiceGate(gate: Float) = settings.update { it.copy(voiceCutInGate = gate) }
 
+    override fun setVoicePushToTalk(on: Boolean) = settings.update { it.copy(voicePushToTalk = on) }
+
+    override fun talkInVoiceChat() = voice.talk()
+
     override fun setVoiceGateFromNoise() {
         val gate = voice.gateFromNoise() ?: return
         settings.update { it.copy(voiceCutInGate = gate) }

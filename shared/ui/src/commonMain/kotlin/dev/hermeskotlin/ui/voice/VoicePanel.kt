@@ -83,6 +83,7 @@ import dev.hermeskotlin.designsystem.textTertiary
 import dev.hermeskotlin.designsystem.typography
 import dev.hermeskotlin.ui.resources.*
 import kotlin.math.PI
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -103,6 +104,7 @@ internal fun VoicePanel(
     onEnd: () -> Unit,
     onExpand: () -> Unit,
     onSendNow: () -> Unit = {},
+    onTalk: () -> Unit = {},
 ) {
     val shape = RoundedCornerShape(28.dp)
     val page = Theme[colors][background]
@@ -160,8 +162,16 @@ internal fun VoicePanel(
             horizontalArrangement = Arrangement.spacedBy(40.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Mute in a call and a chained chat alike; empty slots keep End in the middle.
-            if (state.phase != VoicePhase.Connecting) {
+            val talk = talkButton(state)
+            if (talk != null) {
+                RoundButton(
+                    talk.icon,
+                    contentDescription = stringResource(talk.label),
+                    fill = if (talk == TalkButton.Send) Theme[colors][textColor] else Theme[colors][textColor].copy(alpha = 0.08f),
+                    tint = if (talk == TalkButton.Send) Theme[colors][background] else Theme[colors][textColor],
+                    onClick = onTalk,
+                )
+            } else if (canMute(state)) {
                 RoundButton(
                     if (state.muted) Lucide.MicOff else Lucide.Mic,
                     contentDescription = stringResource(if (state.muted) Res.string.voice_unmute else Res.string.voice_mute),
@@ -198,7 +208,12 @@ internal fun VoicePanel(
 internal fun label(state: VoiceChatState): String = when (state.phase) {
     VoicePhase.Connecting -> stringResource(Res.string.voice_connecting)
     VoicePhase.Listening -> stringResource(
-        if (state.muted) Res.string.voice_muted else if (state.hearing) Res.string.voice_hearing else Res.string.voice_listening,
+        when {
+            state.muted -> Res.string.voice_muted
+            state.waitingToTalk -> Res.string.voice_tap_to_talk
+            state.hearing -> Res.string.voice_hearing
+            else -> Res.string.voice_listening
+        },
     )
     VoicePhase.Transcribing -> stringResource(Res.string.voice_transcribing)
     VoicePhase.Thinking -> stringResource(Res.string.voice_thinking)
@@ -214,13 +229,35 @@ internal fun screenStaysOn(voiceChat: VoiceChatState, readAloud: ReadAloudState,
     readAloud.key != null || voiceChat.phase != VoicePhase.Off && settings.voiceKeepScreenOn
 
 /** The chained chat has heard you: what's said so far can go now, without waiting for the pause. */
-internal fun canSendNow(state: VoiceChatState) = !state.live && state.phase == VoicePhase.Listening && state.hearing
+internal fun canSendNow(state: VoiceChatState) = !state.live && !state.pushToTalk && state.phase == VoicePhase.Listening && state.hearing
+
+/**
+ * Mute in a call from the start, and in the chained chat once it listens; push to talk has no microphone to mute, as
+ * it's closed but for the taps.
+ */
+internal fun canMute(state: VoiceChatState) = state.live || state.phase != VoicePhase.Connecting && !state.pushToTalk
+
+/** Push to talk's button, and what it does now: talk (or talk over Hermes), send what's been said, or nothing. */
+internal enum class TalkButton(val label: StringResource, val icon: ImageVector) {
+    Talk(Res.string.voice_talk, Lucide.Mic),
+    Send(Res.string.voice_send, Lucide.ArrowUp),
+}
+
+internal fun talkButton(state: VoiceChatState): TalkButton? = when {
+    !state.pushToTalk || state.live -> null
+    state.phase == VoicePhase.Listening && !state.waitingToTalk -> TalkButton.Send
+    state.phase == VoicePhase.Listening || state.phase == VoicePhase.Speaking || state.phase == VoicePhase.Thinking -> TalkButton.Talk
+    else -> null
+}
 
 /** What to do now, while there are no words to show; [hintText] words it. */
-internal enum class VoiceHint { Unmute, Connecting, Working, TalkOver, Skip, SendNow, JustTalk }
+internal enum class VoiceHint { Unmute, TapSend, PushToTalk, TapToTalkOver, Connecting, Working, TalkOver, Skip, SendNow, JustTalk }
 
 internal fun hint(state: VoiceChatState) = when {
     state.muted -> VoiceHint.Unmute
+    talkButton(state) == TalkButton.Send -> VoiceHint.TapSend
+    state.waitingToTalk -> VoiceHint.PushToTalk
+    talkButton(state) == TalkButton.Talk -> VoiceHint.TapToTalkOver
     state.phase == VoicePhase.Connecting -> VoiceHint.Connecting
     state.phase == VoicePhase.Thinking -> VoiceHint.Working
     (state.live || state.bargeIn) && state.phase == VoicePhase.Speaking -> VoiceHint.TalkOver
@@ -233,6 +270,9 @@ internal fun hint(state: VoiceChatState) = when {
 internal fun hintText(state: VoiceChatState): String = stringResource(
     when (hint(state)) {
         VoiceHint.Unmute -> Res.string.voice_hint_unmute
+        VoiceHint.TapSend -> Res.string.voice_hint_tap_send
+        VoiceHint.PushToTalk -> Res.string.voice_hint_push_to_talk
+        VoiceHint.TapToTalkOver -> Res.string.voice_hint_tap_to_talk_over
         VoiceHint.Connecting -> Res.string.voice_hint_connecting
         VoiceHint.Working -> Res.string.voice_hint_working
         VoiceHint.TalkOver -> Res.string.voice_hint_talk_over

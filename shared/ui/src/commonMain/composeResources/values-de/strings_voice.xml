@@ -76,4 +76,15 @@
     <string name="voice_gate_hint_speaking">Warte, bis Hermes fertig ist, und sei dann kurz still.</string>
     <string name="voice_gate_hint_listen">Sei kurz still, damit es den Raum hört.</string>
     <string name="voice_gate_hint_heard">Es hat den Raum gehört: Setz die Linie knapp darüber.</string>
+
+    <!-- Push to talk -->
+    <string name="voice_tap_to_talk">Zum Sprechen tippen</string>
+    <string name="voice_talk">Sprechen</string>
+    <string name="voice_send">Senden</string>
+    <string name="voice_hint_tap_send">Tippe auf Senden, wenn du fertig bist</string>
+    <string name="voice_hint_push_to_talk">Tippe aufs Mikrofon, sprich, tippe auf Senden · sag „stop“ zum Beenden</string>
+    <string name="voice_hint_tap_to_talk_over">Tippe aufs Mikrofon, um dazwischenzusprechen</string>
+    <string name="voice_hands_free">Freihändig</string>
+    <string name="voice_push_to_talk">Push-to-Talk</string>
+    <string name="voice_push_to_talk_detail">Das Mikrofon ist nur vom Tippen darauf bis zum Tippen auf Senden offen: Geräusche senden nichts, und nur ein Tippen unterbricht.</string>
 </resources>

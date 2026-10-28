@@ -137,6 +137,12 @@ interface ChatActions {
     /** Sets the gate just over the noise the voice chat has heard lately; nothing until it has heard enough. */
     fun setVoiceGateFromNoise() {}
 
+    /** The voice chat listens only between taps on Talk and Send, or hands-free. */
+    fun setVoicePushToTalk(on: Boolean) {}
+
+    /** Push to talk's button: talk, talk over Hermes, or send what's been said. */
+    fun talkInVoiceChat() {}
+
     fun dismissVoiceChatError()
 
     fun dismissDictationError()
