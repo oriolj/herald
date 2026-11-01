@@ -98,4 +98,10 @@
     <string name="wear_assistant_set">Kyllene responde al botón</string>
     <string name="wear_assistant_refused">Sin configurar. Toca para reintentar</string>
     <string name="wear_assistant_unset">Usar Kyllene como asistente</string>
+
+    <!-- The phone's gateways -->
+    <string name="wear_gateways">Gateways</string>
+    <string name="wear_switch_gateway">Cambiar de Gateway</string>
+    <string name="wear_gateway_in_use">En uso</string>
+    <string name="wear_gateway_sign_in">Inicia sesión en el teléfono</string>
 </resources>

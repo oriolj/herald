@@ -98,4 +98,10 @@
     <string name="wear_assistant_set">A Kyllene válaszol a gombra</string>
     <string name="wear_assistant_refused">Nincs beállítva. Koppints az újrapróbáláshoz</string>
     <string name="wear_assistant_unset">A Kyllene beállítása asszisztensként</string>
+
+    <!-- The phone's gateways -->
+    <string name="wear_gateways">Gateway-ek</string>
+    <string name="wear_switch_gateway">Gateway váltása</string>
+    <string name="wear_gateway_in_use">Használatban</string>
+    <string name="wear_gateway_sign_in">Jelentkezz be a telefonon</string>
 </resources>

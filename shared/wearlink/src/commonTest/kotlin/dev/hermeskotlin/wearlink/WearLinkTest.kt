@@ -314,4 +314,16 @@ class WearLinkTest {
         val oneWord = clipForWatch("x".repeat(100), max = 40)
         assertEquals(40, oneWord.length)
     }
+
+    @Test
+    fun anOlderPhonesStatusHasNoGatewaysToSwitchTo() {
+        val status = WearJson.decode<PhoneStatus>("""{"signedIn":true,"connected":true}""".encodeToByteArray())!!
+        assertEquals(null, status.gateways)
+    }
+
+    @Test
+    fun aGatewaySwitchGoesAcrossWhole() {
+        val switch = GatewaySwitch("https://work.example.ts.net", requestId = "r1", accentRevision = "7")
+        assertEquals(switch, WearJson.decode<GatewaySwitch>(WearJson.encode(switch)))
+    }
 }

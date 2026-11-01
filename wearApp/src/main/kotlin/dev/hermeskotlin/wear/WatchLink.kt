@@ -16,6 +16,8 @@ import dev.hermeskotlin.wearlink.CallUpdate
 import dev.hermeskotlin.wearlink.ChatList
 import dev.hermeskotlin.wearlink.ChatListRequest
 import dev.hermeskotlin.wearlink.PhoneStatus
+import dev.hermeskotlin.wearlink.GatewaySwitch
+import dev.hermeskotlin.wearlink.WatchGateway
 import dev.hermeskotlin.wearlink.PhoneStatusRequest
 import dev.hermeskotlin.wearlink.RecordedAsk
 import dev.hermeskotlin.wearlink.ReplyPhase
@@ -153,6 +155,11 @@ class WatchLink(
     /** The phone's gateway talks live, so the watch can hold a voice call instead of sending what it heard. */
     val liveVoice: StateFlow<Boolean> = _liveVoice.asStateFlow()
 
+    private val _gateways = MutableStateFlow<List<WatchGateway>>(emptyList())
+
+    /** The phone's saved gateways, to switch between ([switchGateway]); none from an older phone. */
+    val gateways: StateFlow<List<WatchGateway>> = _gateways.asStateFlow()
+
     private val _call = MutableStateFlow<WatchCallState?>(null)
     val call: StateFlow<WatchCallState?> = _call.asStateFlow()
 
@@ -176,9 +183,15 @@ class WatchLink(
     private var profileChecked = false
     private var profileSync = false
 
-    /** Checks the phone's browsing profile before the watch uses its remembered selection. */
-    suspend fun synchronizeProfile(): Boolean = withContext(main) {
-        statusRequest?.let { return@withContext it.second.await() }
+    /**
+     * Checks the phone's browsing profile before the watch uses its remembered selection. With [switchTo], the phone
+     * moves to that saved gateway first, and the answer is how it stands there.
+     */
+    suspend fun synchronizeProfile(switchTo: String? = null): Boolean = withContext(main) {
+        statusRequest?.let { pending ->
+            val checked = pending.second.await()
+            if (switchTo == null) return@withContext checked
+        }
         val id = UUID.randomUUID().toString()
         val waiting = CompletableDeferred<Boolean>()
         statusRequest = id to waiting
@@ -186,7 +199,12 @@ class WatchLink(
         profileChecked = false
         try {
             val chat = store.chat.value
-            if (send(WearPaths.STATUS, WearJson.encode(PhoneStatusRequest(chat.botProfile, id, chat.scope, store.accent.value?.revision))) { statusRequest?.first == id } != null) {
+            val asked = if (switchTo != null) {
+                send(WearPaths.GATEWAY, WearJson.encode(GatewaySwitch(switchTo, id, store.accent.value?.revision))) { statusRequest?.first == id }
+            } else {
+                send(WearPaths.STATUS, WearJson.encode(PhoneStatusRequest(chat.botProfile, id, chat.scope, store.accent.value?.revision))) { statusRequest?.first == id }
+            }
+            if (asked != null) {
                 _chats.value = null
                 return@withContext false
             }
@@ -546,6 +564,11 @@ class WatchLink(
         scope.launch(main) { synchronizeProfile() }
     }
 
+    /** Moves the phone to its saved gateway [url]; the watch follows once the phone says it has, as when it's moved there. */
+    fun switchGateway(url: String) {
+        scope.launch(main) { synchronizeProfile(switchTo = url) }
+    }
+
     /** A message from the selected phone, or the debug fake phone. */
     fun onMessage(path: String, data: ByteArray, sourceNode: String? = null) {
         scope.launch(main) {
@@ -603,6 +626,7 @@ class WatchLink(
                     else if (!valid && (store.phoneScope != null || store.chat.value.id != null || store.chat.value.botProfile != null || store.chat.value.scope != null || _chats.value != null)) resetProfile(null)
                     profileChecked = valid
                     botChats = status.botChats
+                    _gateways.value = status.gateways.orEmpty()
                     if (status.botProfile == store.chat.value.botProfile && (store.chat.value.scope == null || status.scope == store.chat.value.scope)) status.liveVoice?.let { _liveVoice.value = it }
                     _phone.value = when {
                         !status.signedIn -> PhoneState.SignedOut

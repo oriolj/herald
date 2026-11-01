@@ -26,6 +26,12 @@ object WearPaths {
     /** Watch → phone: an optional [PhoneStatusRequest] asking how the phone stands. Phone → watch: a [PhoneStatus]. */
     const val STATUS = "/herald/status"
 
+    /**
+     * Watch → phone: a [GatewaySwitch], to move the phone to another of its saved gateways ([PhoneStatus.gateways]).
+     * The phone answers on [STATUS] as for a [PhoneStatusRequest], once it has switched.
+     */
+    const val GATEWAY = "/herald/gateway"
+
     /** Phone → watch: pull the current browsing context again. */
     const val PROFILE_CHANGED = "/herald/profile/changed"
 
@@ -293,7 +299,21 @@ data class PhoneStatus(
     val profileSync: Boolean = false,
     val scope: WatchScope? = null,
     val accent: WatchAccent? = null,
+    /** The phone's saved gateways, to switch between from the watch ([WearPaths.GATEWAY]); null from an older phone. */
+    val gateways: List<WatchGateway>? = null,
 )
+
+/**
+ * One of the phone's saved gateways, by its address and what the phone calls it. [inUse]: the one the watch talks
+ * to now. [signedIn]: it holds a session on the phone, so the watch can switch to it; one that doesn't is signed in
+ * to on the phone.
+ */
+@Serializable
+data class WatchGateway(val url: String, val label: String, val inUse: Boolean = false, val signedIn: Boolean = true)
+
+/** Moves the phone to its saved gateway [url]; [requestId] and [accentRevision] as in a [PhoneStatusRequest]. */
+@Serializable
+data class GatewaySwitch(val url: String, val requestId: String? = null, val accentRevision: String? = null)
 
 /*
  * A live voice call from the watch. The watch holds the WebRTC call itself (its microphone and speaker, straight

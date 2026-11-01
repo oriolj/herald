@@ -8,6 +8,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -56,7 +57,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.annotation.StringRes
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -93,6 +93,7 @@ import androidx.wear.compose.material3.timeTextSeparator
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import dev.hermeskotlin.wearlink.WatchGateway
 import dev.hermeskotlin.wearlink.ReplyPhase
 import dev.hermeskotlin.wearlink.WatchAccent
 import kotlinx.coroutines.delay
@@ -172,9 +173,17 @@ fun HeraldWatchApp(
                     )
                 }
                 composable(CHATS) {
-                    ChatsScreen(link = link, store = store, onPicked = { nav.popBackStack() }, onSettings = { nav.navigate(SETTINGS) })
+                    ChatsScreen(
+                        link = link,
+                        store = store,
+                        onPicked = { nav.popBackStack() },
+                        onSettings = { nav.navigate(SETTINGS) },
+                        onGateways = { nav.navigate(GATEWAYS) },
+                    )
                 }
                 composable(SETTINGS) { SettingsScreen(link = link, store = store) }
+                // Switched, the phone's new gateway resets the watch to the talk screen (profileReset above).
+                composable(GATEWAYS) { GatewaysScreen(link = link, onPicked = { nav.popBackStack() }) }
             }
         }
     }
@@ -635,8 +644,9 @@ private val CallTabsShape = GenericShape { size, _ ->
 }
 
 @Composable
-private fun ChatsScreen(link: WatchLink, store: WatchStore, onPicked: () -> Unit, onSettings: () -> Unit) {
+private fun ChatsScreen(link: WatchLink, store: WatchStore, onPicked: () -> Unit, onSettings: () -> Unit, onGateways: () -> Unit) {
     val list by link.chats.collectAsState()
+    val gateways by link.gateways.collectAsState()
     val chat by store.chat.collectAsState()
     var showBots by rememberSaveable { mutableStateOf(store.chat.value.botProfile != null) }
     val chatsState = rememberTransformingLazyColumnState()
@@ -685,6 +695,17 @@ private fun ChatsScreen(link: WatchLink, store: WatchStore, onPicked: () -> Unit
                         Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.wear_settings), tint = Text1)
                     }
                 }
+            }
+            // Which of the phone's gateways these chats are on, a tap from the others, with more than one saved.
+            val inUse = gateways.firstOrNull { it.inUse }
+            if (gateways.size > 1 && inUse != null) item(key = "gateway") {
+                Button(
+                    onClick = onGateways,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Surface2, contentColor = Text1, secondaryContentColor = Muted),
+                    label = { Text(inUse.label, style = geist(14, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    secondaryLabel = { Text(stringResource(R.string.wear_switch_gateway), style = geist(12, color = Muted), maxLines = 1) },
+                )
             }
             val current = list
             val error = if (showBots) current?.botError else current?.error
@@ -856,6 +877,51 @@ private fun SettingsScreen(link: WatchLink, store: WatchStore) {
     }
 }
 
+/**
+ * The phone's saved gateways: a tap on one moves the phone, and the watch with it, there. One the phone isn't signed
+ * in to is shown but can't be picked: it's signed in to on the phone.
+ */
+@Composable
+private fun GatewaysScreen(link: WatchLink, onPicked: () -> Unit) {
+    val gateways by link.gateways.collectAsState()
+    val listState = rememberTransformingLazyColumnState()
+    ScreenScaffold(scrollState = listState, modifier = Modifier.halo(OrbMood.Idle, MaterialTheme.colorScheme.primaryContainer)) { contentPadding ->
+        TransformingLazyColumn(state = listState, contentPadding = contentPadding, modifier = Modifier.fillMaxSize()) {
+            item {
+                Text(stringResource(R.string.wear_gateways), modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp), style = geist(17, FontWeight.SemiBold), textAlign = TextAlign.Center)
+            }
+            gateways.forEach { gateway ->
+                item(key = gateway.url) {
+                    Button(
+                        onClick = {
+                            link.switchGateway(gateway.url)
+                            onPicked()
+                        },
+                        enabled = gateway.signedIn && !gateway.inUse,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).semantics { selected = gateway.inUse },
+                        colors = ButtonDefaults.buttonColors(containerColor = Surface2, contentColor = Text1, secondaryContentColor = Muted),
+                        icon = if (gateway.inUse) {
+                            { Box(Modifier.size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape)) }
+                        } else {
+                            null
+                        },
+                        label = { Text(gateway.label, style = geist(14, FontWeight.Medium), maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                        secondaryLabel = gatewayNote(gateway)?.let { { Text(stringResource(it), style = geist(12, color = Muted), maxLines = 1) } },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** What a gateway's row says under its name: in use, or to be signed in to on the phone first. */
+@StringRes
+internal fun gatewayNote(gateway: WatchGateway): Int? = when {
+    gateway.inUse -> R.string.wear_gateway_in_use
+    !gateway.signedIn -> R.string.wear_gateway_sign_in
+    else -> null
+}
+
 @Composable
 private fun VoiceSwitch(label: String, detail: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     SwitchButton(
@@ -917,3 +983,4 @@ internal fun activityLine(phase: ReplyPhase, activity: String?): WatchLine = act
 private const val TALK = "talk"
 private const val CHATS = "chats"
 private const val SETTINGS = "settings"
+private const val GATEWAYS = "gateways"

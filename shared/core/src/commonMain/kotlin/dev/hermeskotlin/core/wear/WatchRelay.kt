@@ -5,6 +5,7 @@ import dev.hermeskotlin.core.bots.BotsApi
 import dev.hermeskotlin.core.bots.BotChats
 import dev.hermeskotlin.core.bots.forRoster
 import dev.hermeskotlin.core.chat.ChatHost
+import dev.hermeskotlin.core.chat.ChatLinks
 import dev.hermeskotlin.core.chat.ChatMessage
 import dev.hermeskotlin.core.chat.ChatSession
 import dev.hermeskotlin.core.chat.ChatState
@@ -31,6 +32,7 @@ import dev.hermeskotlin.wearlink.ReplyPhase
 import dev.hermeskotlin.wearlink.ReplySpeech
 import dev.hermeskotlin.wearlink.ReplyUpdate
 import dev.hermeskotlin.wearlink.WatchScope
+import dev.hermeskotlin.wearlink.WatchGateway
 import dev.hermeskotlin.wearlink.WatchAccent
 import dev.hermeskotlin.wearlink.WatchAsk
 import dev.hermeskotlin.wearlink.WatchChat
@@ -103,6 +105,8 @@ class WatchRelay(
     private val bots: BotsApi,
     private val botChats: BotChats,
     private val settings: SettingsStore,
+    /** Where a gateway the watch switched to is told to the app's screens, so they follow it. */
+    private val links: ChatLinks? = null,
 ) {
     private val scope = CoroutineScope(appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]))
 
@@ -271,6 +275,25 @@ class WatchRelay(
     }
 
     /**
+     * The watch picked [url] among the saved gateways: the phone moves to it as its own gateways sheet does (the
+     * screens following through [links]), then tells the watch how it stands, as for a status ask. One that holds no
+     * session, or is gone, isn't switched to: the answer still says how the phone stands, so the watch settles.
+     */
+    fun switchGateway(node: String, url: String, requestId: String?, accent: WatchAccent?) {
+        scope.launch {
+            val target = gateways.all().find(url)
+            if (target != null && target.url != gateways.current()?.url && auth.hasStoredSession(target.gatewayUrl)) {
+                connection.stop()
+                host.close()
+                gateways.select(target.url)
+                connection.start(target.gatewayUrl)
+                links?.openGateway(target.url)
+            }
+            status(node, requestId = requestId, accent = accent)
+        }
+    }
+
+    /**
      * Tells the watch [node] a new [accent] unasked, with how the phone stands. The live voice isn't checked:
      * the watch's own status asks do that, and an accent change shouldn't reach the gateway.
      */
@@ -288,10 +311,13 @@ class WatchRelay(
         val gateway = saved?.gatewayUrl?.takeIf { signedIn }
         val profile = gateway?.let { if (owner != null && owner.gateway == it.value) owner.profile else botProfile ?: profiles.get(it) }
         val live = if (gateway == null) false else liveVoices.load()[gateway to profile]?.on
+        val all = gateways.all().ordered.map {
+            WatchGateway(it.url, it.label, inUse = it.url == saved?.url, signedIn = auth.hasStoredSession(it.gatewayUrl))
+        }
         return PhoneStatus(signedIn, signedIn && reachable, failed = signedIn && state is ConnectionState.Failed,
             liveVoice = live, botChats = true, botProfile = botProfile, defaultCalls = true, profileSync = true,
             activeScope = gateway?.let { WatchScope(it.value, profiles.get(it)) },
-            scope = gateway?.let { WatchScope(it.value, profile) }) to gateway
+            scope = gateway?.let { WatchScope(it.value, profile) }, gateways = all) to gateway
     }
 
     /** Whether [gateway]'s live voice was asked lately: the watch asks how the phone stands often, the gateway every few minutes. */

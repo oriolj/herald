@@ -15,6 +15,7 @@ import dev.hermeskotlin.wearlink.CallEvents
 import dev.hermeskotlin.wearlink.ChatListRequest
 import dev.hermeskotlin.wearlink.CallStart
 import dev.hermeskotlin.wearlink.RecordedAsk
+import dev.hermeskotlin.wearlink.GatewaySwitch
 import dev.hermeskotlin.wearlink.PhoneStatusRequest
 import dev.hermeskotlin.wearlink.RingEnd
 import dev.hermeskotlin.wearlink.RingOn
@@ -76,6 +77,12 @@ class WearBridgeService : WearableListenerService() {
                 scope.launch {
                     val accent = watchAccent(settings.settings.filterNotNull().first().accent)
                     relay.status(node, request?.botProfile, request?.requestId, request?.scope, accent.updateFor(request?.accentRevision))
+                }
+            }
+            WearPaths.GATEWAY -> WearJson.decode<GatewaySwitch>(event.data)?.let { switch ->
+                scope.launch {
+                    val accent = watchAccent(settings.settings.filterNotNull().first().accent)
+                    relay.switchGateway(node, switch.url, switch.requestId, accent.updateFor(switch.accentRevision))
                 }
             }
         }

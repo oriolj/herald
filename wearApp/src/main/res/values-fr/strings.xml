@@ -98,4 +98,10 @@
     <string name="wear_assistant_set">Kyllene répond au bouton</string>
     <string name="wear_assistant_refused">Non défini. Touchez pour réessayer</string>
     <string name="wear_assistant_unset">Définir Kyllene comme assistant</string>
+
+    <!-- The phone's gateways -->
+    <string name="wear_gateways">Gateways</string>
+    <string name="wear_switch_gateway">Changer de Gateway</string>
+    <string name="wear_gateway_in_use">En cours d’utilisation</string>
+    <string name="wear_gateway_sign_in">Connectez-vous sur le téléphone</string>
 </resources>

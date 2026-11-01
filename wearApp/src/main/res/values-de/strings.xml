@@ -98,4 +98,10 @@
     <string name="wear_assistant_set">Kyllene antwortet auf die Taste</string>
     <string name="wear_assistant_refused">Nicht gesetzt. Tippe für einen neuen Versuch</string>
     <string name="wear_assistant_unset">Kyllene als Assistent festlegen</string>
+
+    <!-- The phone's gateways -->
+    <string name="wear_gateways">Gateways</string>
+    <string name="wear_switch_gateway">Gateway wechseln</string>
+    <string name="wear_gateway_in_use">In Verwendung</string>
+    <string name="wear_gateway_sign_in">Auf dem Telefon anmelden</string>
 </resources>

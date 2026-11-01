@@ -98,4 +98,10 @@
     <string name="wear_assistant_set">按键由 Kyllene 响应</string>
     <string name="wear_assistant_refused">未设置。点按重试</string>
     <string name="wear_assistant_unset">将 Kyllene 设为助理</string>
+
+    <!-- The phone's gateways -->
+    <string name="wear_gateways">网关</string>
+    <string name="wear_switch_gateway">切换网关</string>
+    <string name="wear_gateway_in_use">正在使用</string>
+    <string name="wear_gateway_sign_in">请在手机上登录</string>
 </resources>
