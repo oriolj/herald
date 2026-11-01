@@ -21,7 +21,8 @@ enum class MicUse {
 
 /**
  * Reads up to `length` samples into the array from `offset`, without waiting: how many it put there, 0 when there are
- * none yet, below 0 (or a throw) when the microphone failed.
+ * none yet, [FrameVoiceRecorder.MIC_GONE] once the microphone is gone for good, below 0 otherwise (or a throw) when it
+ * failed.
  */
 typealias MicRead = suspend (frame: ShortArray, offset: Int, length: Int) -> Int
 
@@ -146,6 +147,8 @@ abstract class FrameVoiceRecorder(
             if (stop()) return false
             val count = read(frame, filled, frame.size - filled)
             when {
+                // A microphone that went (the watch's, its call over) ends it with what was said.
+                count == MIC_GONE -> return false
                 count < 0 -> error("Couldn't read from the microphone (error $count).")
                 count > 0 -> {
                     filled += count
@@ -161,6 +164,9 @@ abstract class FrameVoiceRecorder(
     companion object {
         const val SAMPLE_RATE = 16_000
         const val NO_AUDIO_MS = 5_000L
+
+        /** What a [MicRead] returns once its microphone is gone for good: what was said so far is the recording. */
+        const val MIC_GONE = Int.MIN_VALUE
         /** 20 ms, a frame as Desktop measures them. */
         const val FRAME_SAMPLES = 320
         const val FRAME_MS = 20L

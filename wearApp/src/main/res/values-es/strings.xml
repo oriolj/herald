@@ -90,12 +90,15 @@
     <string name="wear_ago_days">%1$d d</string>
     <string name="wear_ago_weeks">%1$d sem</string>
 
-    <string name="wear_talk_live">Hablar en directo</string>
-    <string name="wear_talk_live_detail">Como llamada de voz</string>
     <string name="wear_read_aloud">Leer en voz alta</string>
     <string name="wear_read_aloud_detail">Cada respuesta</string>
     <string name="wear_assistant">Asistente</string>
     <string name="wear_assistant_set">Kyllene responde al botón</string>
     <string name="wear_assistant_refused">Sin configurar. Toca para reintentar</string>
     <string name="wear_assistant_unset">Usar Kyllene como asistente</string>
+
+    <!-- Talking as a call: live voice, or the phone's own voice chat -->
+    <string name="wear_talk_as_call">Hablar como llamada</string>
+    <string name="wear_talk_live_voice">Voz en directo</string>
+    <string name="wear_talk_phone_call">Como «Llamar» en el teléfono</string>
 </resources>

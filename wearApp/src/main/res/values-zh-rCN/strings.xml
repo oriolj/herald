@@ -90,12 +90,15 @@
     <string name="wear_ago_days">%1$d 天</string>
     <string name="wear_ago_weeks">%1$d 周</string>
 
-    <string name="wear_talk_live">实时通话</string>
-    <string name="wear_talk_live_detail">以语音通话方式</string>
     <string name="wear_read_aloud">朗读</string>
     <string name="wear_read_aloud_detail">每条回复</string>
     <string name="wear_assistant">助理</string>
     <string name="wear_assistant_set">按键由 Kyllene 响应</string>
     <string name="wear_assistant_refused">未设置。点按重试</string>
     <string name="wear_assistant_unset">将 Kyllene 设为助理</string>
+
+    <!-- Talking as a call: live voice, or the phone's own voice chat -->
+    <string name="wear_talk_as_call">以通话方式交谈</string>
+    <string name="wear_talk_live_voice">实时语音</string>
+    <string name="wear_talk_phone_call">同手机上的“呼叫”</string>
 </resources>

@@ -11,12 +11,14 @@ class FrameVoiceRecorderTest {
 
     /**
      * A microphone that hears [script], one sample value per 20 ms frame, then quiet; [onFrame] runs before each
-     * frame is read, by its index. [opens] false: it can't be opened. [stopsAfter]: it stops after that many frames.
+     * frame is read, by its index. [opens] false: it can't be opened. [stopsAfter]: it fails after that many frames;
+     * [goneAfter]: it goes, as a watch's does when its call is over.
      */
     private class Scripted(
         private val script: List<Short>,
         private val opens: Boolean = true,
         private val stopsAfter: Int = Int.MAX_VALUE,
+        private val goneAfter: Int = Int.MAX_VALUE,
         private val onFrame: Scripted.(Int) -> Unit = {},
     ) : FrameVoiceRecorder() {
         var uses = mutableListOf<MicUse>()
@@ -27,6 +29,7 @@ class FrameVoiceRecorderTest {
             var index = 0
             return frames { frame, offset, length ->
                 if (index >= stopsAfter) error("The microphone was disconnected.")
+                if (index >= goneAfter) return@frames FrameVoiceRecorder.MIC_GONE
                 onFrame(index)
                 // Half a frame at a time: it's still measured in whole frames.
                 val count = minOf(length, FrameVoiceRecorder.FRAME_SAMPLES / 2)
@@ -64,6 +67,14 @@ class FrameVoiceRecorderTest {
 
         assertTrue(recording.heardSpeech)
         // Whole frames only: the one being read as it's finished isn't.
+        assertEquals(60 * FrameVoiceRecorder.FRAME_SAMPLES, recording.samples().size)
+    }
+
+    @Test
+    fun aMicrophoneThatStopsEndsTheRecordingWithWhatWasSaid() = runTest {
+        val recording = Scripted(speech(), goneAfter = 60).record(VoiceActivity())
+
+        assertTrue(recording.heardSpeech)
         assertEquals(60 * FrameVoiceRecorder.FRAME_SAMPLES, recording.samples().size)
     }
 

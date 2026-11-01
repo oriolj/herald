@@ -9,6 +9,7 @@ import com.google.android.gms.wearable.Wearable
 import dev.hermeskotlin.wearlink.CALL_EVENT_TYPES
 import dev.hermeskotlin.wearlink.InOrder
 import dev.hermeskotlin.wearlink.CallEnd
+import dev.hermeskotlin.wearlink.CallPlayed
 import dev.hermeskotlin.wearlink.CallEvents
 import dev.hermeskotlin.wearlink.CallPhase
 import dev.hermeskotlin.wearlink.CallStart
@@ -149,6 +150,10 @@ class WatchLink(
 
     private val _liveVoice = MutableStateFlow(false)
     @Volatile private var botChats = false
+    private val _relayedCalls = MutableStateFlow(false)
+
+    /** The phone can hold a relayed call, its own voice chat through the watch, where the gateway doesn't talk live. */
+    val relayedCalls: StateFlow<Boolean> = _relayedCalls.asStateFlow()
 
     /** The phone's gateway talks live, so the watch can hold a voice call instead of sending what it heard. */
     val liveVoice: StateFlow<Boolean> = _liveVoice.asStateFlow()
@@ -158,7 +163,7 @@ class WatchLink(
 
     // The call's state is the main thread's alone: the screen, the phone's messages and the call itself meet there.
     private val main = Dispatchers.Main.immediate
-    private var watchCall: WatchCall? = null
+    private var watchCall: HeldCall? = null
     private var callJob: Job? = null
     private var callUpdateSeq = 0
     private var callEventsSeq = 0
@@ -323,14 +328,17 @@ class WatchLink(
             if (!synchronizeProfile()) return@launch finishCall(id, notConnected)
             if (generation != _profileReset.value || _call.value?.id != id) return@launch
             if (chat.scope != null && !profileSync) return@launch finishCall(id, say(R.string.wear_update_for_profiles))
-            val ringing = launch { ringCall(defaultRequestId) { playCallRingback(context) } }
-            val call = WatchCall(context)
+            // A gateway that doesn't talk live still takes a call: the phone's own voice chat, through the watch.
+            val relayed = !_liveVoice.value && _relayedCalls.value
+            // A relayed call is listening as soon as it's on, with nothing to ring through.
+            val ringing = launch { if (!relayed) ringCall(defaultRequestId) { playCallRingback(context) } }
+            val call: HeldCall = if (relayed) relayedCall(id) else WatchCall(context)
             watchCall = call
             try {
                 val offer = call.offer()
                 if (generation != _profileReset.value || _call.value?.id != id) return@launch
                 send(if (defaultRequestId != null) WearPaths.DEFAULT_CALL_START else if (chat.botProfile == null) WearPaths.CALL_START else WearPaths.BOT_CALL_START,
-                    WearJson.encode(CallStart(id, chat.id, offer, chat.botProfile, defaultRequestId, chat.scope))) { generation == _profileReset.value && profileChecked && _call.value?.id == id }?.let { return@launch finishCall(id, it) }
+                    WearJson.encode(CallStart(id, chat.id, offer, chat.botProfile, defaultRequestId, chat.scope, relayed))) { generation == _profileReset.value && profileChecked && _call.value?.id == id }?.let { return@launch finishCall(id, it) }
                 _call.update { if (it?.id == id && it.stage == CallStage.Starting) it.copy(stage = CallStage.Connecting) else it }
                 launch {
                     delay(ANSWER_WITHIN_MS)
@@ -412,13 +420,36 @@ class WatchLink(
         _call.update { if (it?.id == now.id) it.copy(muted = muted, level = 0f) else it }
     }
 
+    /**
+     * The phone's voice chat for call [id], the watch its microphone and speaker: the microphone streams to the phone on
+     * its own channel, and each sound played is said back.
+     */
+    private fun relayedCall(id: String) = RelayedCall(
+        context,
+        openMic = openMic@{
+            val node = reachablePhone()?.id ?: return@openMic null
+            val channel = channels.openChannel(node, WearPaths.callMicPath(id)).await()
+            channels.getOutputStream(channel).await()
+        },
+        onPlayed = { index -> scope.launch { send(WearPaths.CALL_PLAYED, WearJson.encode(CallPlayed(id, index))) } },
+    )
+
+    /** A sound for the relayed call on now, from the phone. */
+    fun onCallSound(path: String, bytes: ByteArray, sourceNode: String? = null) {
+        val sound = WearPaths.parseCallSound(path) ?: return
+        if (sourceNode != null && sourceNode != phoneNode) return
+        val call = watchCall as? RelayedCall ?: return
+        if (_call.value?.let { it.id == sound.callId && it.active } != true) return
+        call.sound(sound.index, sound.mimeType, sound.sampleRate, sound.channels, bytes)
+    }
+
     /** Puts away an ended call, and what went wrong in it. */
     fun dismissCall() {
         _call.update { if (it?.active == false) null else it }
     }
 
     /** What the voice model sends on the event channel goes to the phone, gathered a moment, the kinds it acts on. */
-    private suspend fun forwardEvents(id: String, call: WatchCall, ringing: Job) {
+    private suspend fun forwardEvents(id: String, call: HeldCall, ringing: Job) {
         while (true) {
             val first = call.events.receiveCatching().getOrNull() ?: return
             if (endsRingback(eventType(first))) ringing.cancel()
@@ -603,6 +634,7 @@ class WatchLink(
                     else if (!valid && (store.phoneScope != null || store.chat.value.id != null || store.chat.value.botProfile != null || store.chat.value.scope != null || _chats.value != null)) resetProfile(null)
                     profileChecked = valid
                     botChats = status.botChats
+                    _relayedCalls.value = status.relayedCalls
                     if (status.botProfile == store.chat.value.botProfile && (store.chat.value.scope == null || status.scope == store.chat.value.scope)) status.liveVoice?.let { _liveVoice.value = it }
                     _phone.value = when {
                         !status.signedIn -> PhoneState.SignedOut

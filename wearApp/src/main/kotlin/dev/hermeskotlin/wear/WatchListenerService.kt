@@ -26,7 +26,8 @@ class WatchListenerService : WearableListenerService() {
     }
 
     override fun onChannelOpened(channel: ChannelClient.Channel) {
-        if (WearPaths.parseSpeech(channel.path) == null) return
+        val callSound = WearPaths.parseCallSound(channel.path) != null
+        if (WearPaths.parseSpeech(channel.path) == null && !callSound) return
         val channels = Wearable.getChannelClient(this)
         app.scope.launch {
             val bytes = try {
@@ -37,7 +38,7 @@ class WatchListenerService : WearableListenerService() {
             } finally {
                 runCatching { channels.close(channel) }
             }
-            bytes?.let { app.link.onSpeech(channel.path, it, channel.nodeId) }
+            bytes?.let { if (callSound) app.link.onCallSound(channel.path, it, channel.nodeId) else app.link.onSpeech(channel.path, it, channel.nodeId) }
         }
     }
 }

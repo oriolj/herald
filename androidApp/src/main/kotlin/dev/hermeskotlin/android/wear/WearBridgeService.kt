@@ -11,6 +11,7 @@ import dev.hermeskotlin.core.wear.WatchRelay
 import dev.hermeskotlin.ui.voice.WatchCalls
 import dev.hermeskotlin.ui.voice.watchAccent
 import dev.hermeskotlin.wearlink.CallEnd
+import dev.hermeskotlin.wearlink.CallPlayed
 import dev.hermeskotlin.wearlink.CallEvents
 import dev.hermeskotlin.wearlink.ChatListRequest
 import dev.hermeskotlin.wearlink.CallStart
@@ -22,6 +23,7 @@ import dev.hermeskotlin.wearlink.WatchAsk
 import dev.hermeskotlin.wearlink.WatchStop
 import dev.hermeskotlin.wearlink.WearJson
 import dev.hermeskotlin.wearlink.WearPaths
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filterNotNull
@@ -68,6 +70,7 @@ class WearBridgeService : WearableListenerService() {
             }
             WearPaths.CALL_EVENTS -> WearJson.decode<CallEvents>(event.data)?.let { calls.events(node, it) }
             WearPaths.CALL_END -> WearJson.decode<CallEnd>(event.data)?.let(calls::end)
+            WearPaths.CALL_PLAYED -> WearJson.decode<CallPlayed>(event.data)?.let(calls::played)
             WearPaths.RING_END -> WearJson.decode<RingEnd>(event.data)?.let { ringer.endedOnWatch(node, it) }
             WearPaths.RING_ON -> WearJson.decode<RingOn>(event.data)?.let(ringer::ringsOn)
             WearPaths.CHATS -> { relay.chats(node, WearJson.decode<ChatListRequest>(event.data)?.requestId); keepUp() }
@@ -89,7 +92,40 @@ class WearBridgeService : WearableListenerService() {
         runBlocking(Dispatchers.Main.immediate) { notifier.startServiceNow() }
     }
 
+    /**
+     * The watch's microphone on a relayed call, streamed for as long as the call goes on, into the call's recorder.
+     * One for a call that isn't on here is closed at once.
+     */
+    private fun hearMicrophone(channel: ChannelClient.Channel, callId: String) {
+        val channels = Wearable.getChannelClient(this)
+        val mic = calls.microphone(callId)
+        scope.launch {
+            try {
+                if (mic == null) return@launch
+                val input = channels.getInputStream(channel).await()
+                withContext(Dispatchers.IO) {
+                    input.use { stream ->
+                        val bytes = ByteArray(MIC_READ_BYTES)
+                        while (true) {
+                            val read = stream.read(bytes)
+                            if (read < 0) break
+                            if (read > 0) mic.feed(bytes, read)
+                        }
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // The watch went out of reach: the call notices it stopped hearing from it.
+            } finally {
+                mic?.close()
+                runCatching { channels.close(channel) }
+            }
+        }
+    }
+
     override fun onChannelOpened(channel: ChannelClient.Channel) {
+        WearPaths.parseCallMic(channel.path)?.let { callId -> return hearMicrophone(channel, callId) }
         if (!WearPaths.isRecording(channel.path)) return
         val channels = Wearable.getChannelClient(this)
         // The ask is read off the channel after this returns, so the connection is kept up for it now,
@@ -130,6 +166,8 @@ class WearBridgeService : WearableListenerService() {
     }
 
     private companion object {
+        /** What the watch's microphone is read in: a few 20 ms frames at a time. */
+        const val MIC_READ_BYTES = 640 * 4
         const val BUFFER = 16 * 1024
         const val MAX_RECORDING = 8 * 1024 * 1024
     }

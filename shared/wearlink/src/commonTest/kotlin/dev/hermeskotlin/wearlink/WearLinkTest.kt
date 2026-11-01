@@ -314,4 +314,25 @@ class WearLinkTest {
         val oneWord = clipForWatch("x".repeat(100), max = 40)
         assertEquals(40, oneWord.length)
     }
+
+    @Test
+    fun aRelayedCallsMicrophoneAndSoundsSayWhatTheyAre() {
+        assertEquals("call/1", WearPaths.parseCallMic(WearPaths.callMicPath("call/1")))
+        assertEquals(null, WearPaths.parseCallMic("/herald/call/mic/"))
+
+        val pcm = WearPaths.parseCallSound(WearPaths.callSoundPath("c1", 3, WearPaths.PCM, 24_000, 1))
+        assertEquals(WearPaths.CallSound("c1", 3, WearPaths.PCM, 24_000, 1), pcm)
+        val clip = WearPaths.parseCallSound(WearPaths.callSoundPath("c1", 4, "audio/mpeg"))
+        assertEquals(WearPaths.CallSound("c1", 4, "audio/mpeg", 0, 0), clip)
+        // Raw samples with no rate can't be played.
+        assertEquals(null, WearPaths.parseCallSound(WearPaths.callSoundPath("c1", 5, WearPaths.PCM)))
+        assertEquals(null, WearPaths.parseCallSound(WearPaths.speechPath("a1", 0, 1, "audio/mpeg")))
+    }
+
+    @Test
+    fun anOlderWatchsCallIsLive() {
+        val start = WearJson.decode<CallStart>("""{"id":"c1","chatId":null,"offerSdp":"v=0"}""".encodeToByteArray())!!
+        assertFalse(start.relayed)
+        assertFalse(WearJson.decode<PhoneStatus>("""{"signedIn":true,"connected":true}""".encodeToByteArray())!!.relayedCalls)
+    }
 }

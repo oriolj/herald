@@ -220,7 +220,9 @@ class MainActivity : ComponentActivity() {
         defaultCallJob = lifecycleScope.launch {
             if (!ready()) return@launch
             inputGeneration = app.link.profileReset.value
-            if (!(app.link.liveVoice.value && app.store.live.value)) return@launch listen()
+            // A call: live where the gateway talks live, else the phone's own voice chat relayed through the watch.
+            val canCall = app.link.liveVoice.value || app.link.relayedCalls.value
+            if (!(canCall && app.store.live.value)) return@launch listen()
             app.link.dismissCall()
             listening.value = Listening()
             if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {

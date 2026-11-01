@@ -75,6 +75,45 @@ object WearPaths {
     private const val RECORDING = "/herald/recording/"
     private const val BOT_RECORDING = "/herald/bot/recording/"
     private const val SPEECH = "/herald/speech/"
+    private const val CALL_MIC = "/herald/call/mic/"
+    private const val CALL_SOUND = "/herald/call/sound/"
+
+    /** Watch → phone: a [CallPlayed], what the phone sent a relayed call has finished playing on the watch. */
+    const val CALL_PLAYED = "/herald/call/played"
+
+    /**
+     * Watch → phone channel: the watch's microphone on relayed call [callId] ([CallStart.relayed]), as it hears, for as
+     * long as the call goes on: 16 kHz mono 16-bit little-endian samples, silence while muted.
+     */
+    fun callMicPath(callId: String): String = CALL_MIC + encode(callId)
+
+    /** The call a [callMicPath] is for; null for any other path. */
+    fun parseCallMic(path: String): String? = path.removePrefix(CALL_MIC).takeIf { it != path && it.isNotEmpty() }?.let(::decode)
+
+    /**
+     * Phone → watch channel: sound [index] of relayed call [callId], played in order of [index]: a clip as [mimeType],
+     * or with [PCM] raw 16-bit little-endian samples at [sampleRate] with [channels].
+     */
+    fun callSoundPath(callId: String, index: Int, mimeType: String, sampleRate: Int = 0, channels: Int = 0): String =
+        CALL_SOUND + encode(callId) + "/" + index + "/" + encode(mimeType) + "/" + sampleRate + "/" + channels
+
+    /** What a [callSoundPath] says; null for any other path. */
+    fun parseCallSound(path: String): CallSound? {
+        val parts = path.removePrefix(CALL_SOUND).takeIf { it != path }?.split('/') ?: return null
+        if (parts.size != 5 || parts.take(3).any { it.isEmpty() }) return null
+        val index = parts[1].toIntOrNull()?.takeIf { it >= 0 } ?: return null
+        val rate = parts[3].toIntOrNull() ?: return null
+        val channels = parts[4].toIntOrNull() ?: return null
+        val mimeType = decode(parts[2])
+        if (mimeType == PCM && (rate <= 0 || channels !in 1..2)) return null
+        return CallSound(decode(parts[0]), index, mimeType, rate, channels)
+    }
+
+    /** A [callSoundPath]'s sound: raw samples when [mimeType] is [PCM]. */
+    data class CallSound(val callId: String, val index: Int, val mimeType: String, val sampleRate: Int, val channels: Int)
+
+    /** Raw 16-bit samples, as [callSoundPath] says them. */
+    const val PCM = "audio/l16"
 
     /**
      * Watch → phone channel: a spoken ask, for the gateway to transcribe. Its stream is a [RecordedAsk]: the
@@ -293,6 +332,8 @@ data class PhoneStatus(
     val profileSync: Boolean = false,
     val scope: WatchScope? = null,
     val accent: WatchAccent? = null,
+    /** The phone can hold a relayed call ([CallStart.relayed]), its voice chat on the watch, for any profile. */
+    val relayedCalls: Boolean = false,
 )
 
 /*
@@ -305,7 +346,23 @@ data class PhoneStatus(
 
 /** Starts call [id] in [chatId] (null: a new chat), with the watch's WebRTC [offerSdp]. */
 @Serializable
-data class CallStart(val id: String, val chatId: String?, val offerSdp: String, val botProfile: String? = null, val defaultRequestId: String? = null, val scope: WatchScope? = null)
+data class CallStart(
+    val id: String,
+    val chatId: String?,
+    val offerSdp: String,
+    val botProfile: String? = null,
+    val defaultRequestId: String? = null,
+    val scope: WatchScope? = null,
+    /**
+     * Not a live call but the phone's own voice chat, the watch its microphone and speaker: the watch streams what it
+     * hears ([WearPaths.callMicPath]) and plays what the phone sends ([WearPaths.callSoundPath]); no [offerSdp].
+     */
+    val relayed: Boolean = false,
+)
+
+/** Sound [index] of relayed call [callId] has finished playing on the watch. */
+@Serializable
+data class CallPlayed(val callId: String, val index: Int)
 
 /** Event-channel messages of call [callId], in order; [seq] counts each side's batches, so a late one is told apart. */
 @Serializable

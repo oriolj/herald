@@ -289,7 +289,7 @@ class WatchRelay(
         val profile = gateway?.let { if (owner != null && owner.gateway == it.value) owner.profile else botProfile ?: profiles.get(it) }
         val live = if (gateway == null) false else liveVoices.load()[gateway to profile]?.on
         return PhoneStatus(signedIn, signedIn && reachable, failed = signedIn && state is ConnectionState.Failed,
-            liveVoice = live, botChats = true, botProfile = botProfile, defaultCalls = true, profileSync = true,
+            liveVoice = live, botChats = true, botProfile = botProfile, defaultCalls = true, profileSync = true, relayedCalls = true,
             activeScope = gateway?.let { WatchScope(it.value, profiles.get(it)) },
             scope = gateway?.let { WatchScope(it.value, profile) }) to gateway
     }

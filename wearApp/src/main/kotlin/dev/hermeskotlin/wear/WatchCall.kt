@@ -37,7 +37,7 @@ import kotlin.math.sqrt
  * [offer] for the model's answer ([answer]), since only it reaches the gateway. Herald's phone call, on the wrist.
  * One call per instance.
  */
-class WatchCall(context: Context) {
+class WatchCall(context: Context) : HeldCall {
     private val appContext = context.applicationContext
 
     /** Why a call couldn't go on, in the watch's language: it shows under the orb. */
@@ -47,7 +47,7 @@ class WatchCall(context: Context) {
     private val incoming = Channel<String>(Channel.UNLIMITED)
 
     /** Messages from the event channel. Closes when the call drops or is closed. */
-    val events: ReceiveChannel<String> = incoming
+    override val events: ReceiveChannel<String> = incoming
 
     private var adm: JavaAudioDeviceModule? = null
     private var factory: PeerConnectionFactory? = null
@@ -70,7 +70,7 @@ class WatchCall(context: Context) {
     @Volatile private var statsPending = false
 
     /** Opens the microphone and makes the WebRTC offer, its candidates gathered. */
-    suspend fun offer(): String {
+    override suspend fun offer(): String {
         initialize(appContext)
         fastNetwork()
         val gathered = CompletableDeferred<Unit>()
@@ -164,7 +164,7 @@ class WatchCall(context: Context) {
     }
 
     /** The model's answer, from the phone; the call then connects. The phone may send it again: only the first counts. */
-    suspend fun answer(sdp: String) {
+    override suspend fun answer(sdp: String) {
         val peer = synchronized(lock) { peer?.takeIf { !closed && !answered }?.also { answered = true } } ?: return
         peer.applySdp(say(R.string.wear_call_refused)) { observer ->
             whileOpen(observer::onSetFailure) { peer.setRemoteDescription(observer, SessionDescription(SessionDescription.Type.ANSWER, sdp)) }
@@ -172,7 +172,7 @@ class WatchCall(context: Context) {
     }
 
     /** Sends an event on the call's channel; until it opens, it waits. */
-    fun send(event: String) {
+    override fun send(event: String) {
         synchronized(lock) {
             if (closed) return
             waiting.addLast(event)
@@ -191,7 +191,7 @@ class WatchCall(context: Context) {
     }
 
     /** The voice is making sound right now, from the call's stats, with a short hangover for pauses between words; polled. */
-    fun speaking(): Boolean = synchronized(lock) {
+    override fun speaking(): Boolean = synchronized(lock) {
         val peer = peer
         if (peer != null && !closed && !statsPending) {
             statsPending = true
@@ -207,15 +207,15 @@ class WatchCall(context: Context) {
     }
 
     /** The microphone level, 0..1; polled. */
-    fun micLevel(): Float = micLevel
+    override fun micLevel(): Float = micLevel
 
-    fun setMuted(muted: Boolean) = synchronized(lock) {
+    override fun setMuted(muted: Boolean) = synchronized(lock) {
         if (!closed) audioTrack?.setEnabled(!muted)
         if (muted) micLevel = 0f
     }
 
     /** Hangs up and frees the microphone, the speaker and the network. Safe to call more than once, from any thread. */
-    fun close() = synchronized(lock) {
+    override fun close() = synchronized(lock) {
         if (closed) return
         closed = true
         waiting.clear()

@@ -90,12 +90,15 @@
     <string name="wear_ago_days">%1$d n</string>
     <string name="wear_ago_weeks">%1$d hét</string>
 
-    <string name="wear_talk_live">Élő beszélgetés</string>
-    <string name="wear_talk_live_detail">Hanghívásként</string>
     <string name="wear_read_aloud">Felolvasás</string>
     <string name="wear_read_aloud_detail">Minden válasz</string>
     <string name="wear_assistant">Asszisztens</string>
     <string name="wear_assistant_set">A Kyllene válaszol a gombra</string>
     <string name="wear_assistant_refused">Nincs beállítva. Koppints az újrapróbáláshoz</string>
     <string name="wear_assistant_unset">A Kyllene beállítása asszisztensként</string>
+
+    <!-- Talking as a call: live voice, or the phone's own voice chat -->
+    <string name="wear_talk_as_call">Beszélgetés hívásként</string>
+    <string name="wear_talk_live_voice">Élő hang</string>
+    <string name="wear_talk_phone_call">Mint a telefon Hívás gombja</string>
 </resources>

@@ -797,6 +797,7 @@ private fun SettingsScreen(link: WatchLink, store: WatchStore) {
     val speak by store.speak.collectAsState()
     val live by store.live.collectAsState()
     val liveVoice by link.liveVoice.collectAsState()
+    val relayedCalls by link.relayedCalls.collectAsState()
     // The assistant role belongs to the system, so it is asked rather than remembered: it can be taken away in
     // Settings at any time. A watch without the role (some builds drop it) simply doesn't show the row.
     val context = LocalContext.current
@@ -823,8 +824,9 @@ private fun SettingsScreen(link: WatchLink, store: WatchStore) {
                 Text(stringResource(R.string.wear_settings), modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp), style = geist(17, FontWeight.SemiBold), textAlign = TextAlign.Center)
             }
             // One short line each, and what it means under it: longer labels wrap on a round screen.
-            if (liveVoice) {
-                item { VoiceSwitch(stringResource(R.string.wear_talk_live), stringResource(R.string.wear_talk_live_detail), live, store::setLive) }
+            // Live where the gateway talks live; else the phone's own voice chat, as its Call button has it.
+            if (liveVoice || relayedCalls) {
+                item { VoiceSwitch(stringResource(R.string.wear_talk_as_call), stringResource(if (liveVoice) R.string.wear_talk_live_voice else R.string.wear_talk_phone_call), live, store::setLive) }
             }
             item { VoiceSwitch(stringResource(R.string.wear_read_aloud), stringResource(R.string.wear_read_aloud_detail), speak, store::setSpeak) }
             // Not a switch: the system's picker decides it, and it can be taken away there too.

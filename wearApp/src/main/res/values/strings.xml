@@ -103,12 +103,15 @@
     <string name="wear_ago_weeks">%1$dw</string>
 
     <!-- Settings -->
-    <string name="wear_talk_live">Talk live</string>
-    <string name="wear_talk_live_detail">As a voice call</string>
     <string name="wear_read_aloud">Read aloud</string>
     <string name="wear_read_aloud_detail">Every reply</string>
     <string name="wear_assistant">Assistant</string>
     <string name="wear_assistant_set">Kyllene answers the button</string>
     <string name="wear_assistant_refused">Not set. Tap to try again</string>
     <string name="wear_assistant_unset">Set Kyllene as assistant</string>
+
+    <!-- Talking as a call: live voice, or the phone's own voice chat -->
+    <string name="wear_talk_as_call">Talk as a call</string>
+    <string name="wear_talk_live_voice">Live voice</string>
+    <string name="wear_talk_phone_call">As the phone’s Call</string>
 </resources>

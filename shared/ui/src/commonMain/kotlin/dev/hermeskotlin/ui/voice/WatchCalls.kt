@@ -19,6 +19,17 @@ import dev.hermeskotlin.wearlink.CallUpdate
 import dev.hermeskotlin.wearlink.InOrder
 import dev.hermeskotlin.wearlink.WearJson
 import dev.hermeskotlin.wearlink.WearPaths
+import dev.hermeskotlin.core.settings.SettingsStore
+import dev.hermeskotlin.core.settings.VoicePause
+import dev.hermeskotlin.core.voice.SpeechStreams
+import dev.hermeskotlin.core.voice.DeviceLock
+import dev.hermeskotlin.core.wear.WatchMicRecorder
+import dev.hermeskotlin.core.wear.WatchSpeaker
+import dev.hermeskotlin.wearlink.CallPlayed
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -58,13 +69,23 @@ class WatchCalls(
     private val relay: WatchRelay,
     private val audio: AudioApi,
     private val outbox: WatchOutbox,
-    appScope: CoroutineScope,
+    /** Outlives a call, so what a relayed call lets go of on the gateway as it ends (its voice's lease) still goes. */
+    private val appScope: CoroutineScope,
     private val openers: CallOpeners = CallOpeners(),
+    /** The phone's voice settings, which a relayed call ([CallStart.relayed]) follows as the phone's own does. */
+    private val settings: SettingsStore? = null,
+    private val speechStreams: SpeechStreams? = null,
+    private val deviceLock: DeviceLock = DeviceLock.None,
 ) {
     private val serial = Dispatchers.Default.limitedParallelism(1)
     private val scope = CoroutineScope(appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]) + serial)
     private var running: Job? = null
     private var call: WatchHeldCall? = null
+
+    /** The relayed call on now: its microphone, for the watch's stream to feed, and its speaker, for what was played. */
+    @kotlin.concurrent.Volatile private var relayed: RelayedAudio? = null
+
+    private class RelayedAudio(val callId: String, val mic: WatchMicRecorder, val speaker: WatchSpeaker)
 
     /** The watch [node] starts a call. Busy at once, before the caller returns, so the app may keep itself up. */
     fun start(node: String, start: CallStart) {
@@ -109,6 +130,14 @@ class WatchCalls(
         scope.launch { call?.takeIf { it.id == end.callId }?.hungUp() }
     }
 
+    /** Where the watch's microphone on relayed call [callId] goes, once the watch opens it; null for a call not on. */
+    fun microphone(callId: String): WatchMicRecorder? = relayed?.takeIf { it.callId == callId }?.mic
+
+    /** The watch has played what the phone sent its relayed call. */
+    fun played(played: CallPlayed) {
+        relayed?.takeIf { it.callId == played.callId }?.speaker?.played(played.index)
+    }
+
     private suspend fun run(node: String, start: CallStart, held: WatchHeldCall) {
         if (held.over) return
         var seq = 0
@@ -129,6 +158,11 @@ class WatchCalls(
         }
         last = last.copy(scope = WatchScope(chat.gateway.value, chat.profile))
         if (held.over) return
+        if (start.relayed) {
+            val error = holdRelayed(node, start, held, chat, { last }, ::tell)
+            if (!held.hungUp) end(if (held.lost) getString(Res.string.watch_call_lost) else error?.let(::briefError))
+            return
+        }
         when (val status = audio.voiceLiveStatus(chat.gateway, chat.profile)) {
             is ApiResult.Success -> {
                 relay.liveVoiceIs(chat.gateway, status.value.live, chat.profile)
@@ -208,6 +242,85 @@ class WatchCalls(
         // Hung up on the watch: nothing to tell. Otherwise ("stop" said, the call dropped, the watch gone quiet)
         // it's told, in case it's still there.
         if (!held.hungUp) end(if (held.lost) getString(Res.string.watch_call_lost) else error?.let(::briefError))
+    }
+
+    /**
+     * A relayed call: the phone's own voice chat ([VoiceController]) in [chat], as the phone's Call has it (the
+     * gateway's speech-to-text and voice, the pause before sending, the sounds, Mute), the watch its microphone and
+     * speaker. The watch is told the call is live, again until its microphone comes; what it shows follows the chat.
+     * Returns what ended it wrongly, if anything.
+     */
+    private suspend fun holdRelayed(
+        node: String,
+        start: CallStart,
+        held: WatchHeldCall,
+        chat: CallChat.Ready,
+        last: () -> CallUpdate,
+        tell: suspend (CallUpdate) -> Unit,
+    ): String? = coroutineScope {
+        val mic = WatchMicRecorder()
+        val speaker = WatchSpeaker(node, start.id, outbox)
+        relayed = RelayedAudio(start.id, mic, speaker)
+        val voiceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val voice = VoiceController(audio, mic, speaker, voiceScope, appScope, speechStreams = speechStreams, deviceLock = deviceLock)
+        // No button for it on the watch, so never push to talk.
+        settings?.let { voice.follow(it.settings, withPushToTalk = false) }
+        val pause = settings?.settings?.filterNotNull()?.first()?.voicePause ?: VoicePause.Normal
+        try {
+            tell(last().copy(phase = CallPhase.Live, answerSdp = ""))
+            val answering = launch {
+                while (!mic.heard) {
+                    delay(ANSWER_AGAIN_MS)
+                    if (!mic.heard) tell(last().copy(answerSdp = ""))
+                }
+            }
+            val watching = launch { held.watch() }
+            val hangingUp = launch {
+                while (!held.over) delay(HANG_UP_CHECK_MS)
+                voice.stopChat()
+            }
+            val forward = launch {
+                var heldChat: String? = null
+                combine(voice.chat, chat.session.state) { v, s ->
+                    CallView(
+                        v.caption, v.captionIsVoice, v.phase == VoicePhase.Thinking || v.phase == VoicePhase.Transcribing, v.working,
+                        v.error?.let(::briefError), s.storedSessionId, s.title, modelOf(s), contextPercentOf(s),
+                    )
+                }.distinctUntilChanged().conflate().collect { view ->
+                    view.chatId?.takeIf { it != heldChat }?.let {
+                        heldChat = it
+                        relay.callChat(it)
+                    }
+                    val now = last()
+                    tell(
+                        now.copy(
+                            answerSdp = "".takeUnless { mic.heard },
+                            caption = view.caption,
+                            captionIsVoice = view.captionIsVoice,
+                            thinking = view.thinking,
+                            working = view.working,
+                            error = view.error,
+                            chatId = view.chatId ?: now.chatId,
+                            title = view.title ?: now.title,
+                            model = view.model ?: now.model,
+                            contextPercent = view.contextPercent ?: now.contextPercent,
+                        ),
+                    )
+                    delay(UPDATE_EVERY_MS)
+                }
+            }
+            voice.startChat(chat.session, chat.gateway, chat.profile, pause.millis, opener = openers.take(start.chatId))
+            val ended = voice.chat.first { it.phase == VoicePhase.Off }
+            listOf(answering, watching, hangingUp, forward).forEach { it.cancel() }
+            ended.error
+        } finally {
+            withContext(NonCancellable) {
+                voice.stopChat()
+                mic.close()
+                if (relayed?.callId == start.id) relayed = null
+                voiceScope.cancel()
+            }
+        }
     }
 
     /** The watch's call as [LiveConversation] sees it: the model's events come from the watch, and go back to it. */
@@ -321,6 +434,7 @@ class WatchCalls(
         private const val ANSWER_AGAIN_MS = 1_500L
         private const val SEND_GATHER_MS = 60L
         private const val WATCH_CHECK_MS = 5_000L
+        private const val HANG_UP_CHECK_MS = 200L
 
         /** The watch says it's there every 10 s; three missed and it's gone. */
         private const val WATCH_QUIET_MS = 30_000L
