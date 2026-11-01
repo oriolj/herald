@@ -22,15 +22,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.math.min
-import kotlin.math.sqrt
 
 /**
  * Records 16 kHz mono PCM with [AudioRecord] and hands it over as WAV, which every speech-to-text
@@ -41,217 +37,56 @@ class AndroidVoiceRecorder(
     /** The voice chat's call audio, whose microphone it listens with while one plays as a call; none, never as one. */
     private val callAudio: AndroidCallAudio? = null,
     /** How long a microphone may send nothing before the recording fails. */
-    private val noAudioMs: Long = NO_AUDIO_MS,
-) : VoiceRecorder {
+    noAudioMs: Long = FrameVoiceRecorder.NO_AUDIO_MS,
+) : FrameVoiceRecorder(noAudioMs) {
 
-    @Volatile private var finishRequested = false
-
+    /**
+     * Recording, the speech-recognition microphone with noise suppression only: automatic gain lifts the room's hum in
+     * every pause until it reads as talking, and the end of speech is never found. Listening over the voice, the call
+     * microphone with the phone's echo cancelling (and noise suppression) on it, so the voice coming out of the speaker
+     * is mostly gone from what it hears.
+     */
     @SuppressLint("MissingPermission") // The UI asks for RECORD_AUDIO before starting.
-    override suspend fun record(activity: VoiceActivity, onLevel: (Float) -> Unit, onSpeech: () -> Unit): Recording = withContext(Dispatchers.IO) {
-        finishRequested = false
+    override suspend fun <T> listen(use: MicUse, frames: suspend (read: MicRead) -> T): T? = withContext(Dispatchers.IO) {
         val minBuffer = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        val record = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
-            SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-            maxOf(minBuffer, FRAME_SAMPLES * 2 * 4),
-        )
+        val record = try {
+            AudioRecord(
+                if (use == MicUse.Record) MediaRecorder.AudioSource.VOICE_RECOGNITION else MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                maxOf(minBuffer, FRAME_SAMPLES * 2 * 4),
+            )
+        } catch (_: Exception) {
+            return@withContext null
+        }
         if (record.state != AudioRecord.STATE_INITIALIZED) {
             record.release()
-            error("The microphone isn't available.")
+            return@withContext null
         }
         callAudio?.microphone?.let { record.preferredDevice = it }
-        // Noise suppression only: automatic gain lifts the room's hum in every pause until it reads as
-        // talking, and the end of speech is never found.
-        val effects = listOfNotNull(
-            if (NoiseSuppressor.isAvailable()) NoiseSuppressor.create(record.audioSessionId)?.apply { enabled = true } else null,
-        )
-        val pcm = ByteArrayOutputStream()
-        val frame = ShortArray(FRAME_SAMPLES)
-        val bytes = ByteBuffer.allocate(FRAME_SAMPLES * 2).order(ByteOrder.LITTLE_ENDIAN)
-        val endOfSpeech = EndOfSpeech(activity)
-        var elapsed = 0L
+        val effects = ArrayList<AudioEffect>(2)
         try {
+            // Inside the try, so the recorder is let go whatever they do; one that won't switch on is done without.
+            if (use == MicUse.ListenOver && AcousticEchoCanceler.isAvailable()) {
+                runCatching { AcousticEchoCanceler.create(record.audioSessionId) }.getOrNull()?.let(effects::add)
+            }
+            if (NoiseSuppressor.isAvailable()) runCatching { NoiseSuppressor.create(record.audioSessionId) }.getOrNull()?.let(effects::add)
+            effects.forEach { runCatching { it.enabled = true } }
             record.startRecording()
-            if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) error("The microphone isn't available.")
-            while (!finishRequested) {
-                ensureActive()
-                if (!record.readFrame(frame) { finishRequested }) break
-                bytes.clear()
-                var sum = 0.0
-                for (sample in frame) {
-                    bytes.putShort(sample)
-                    sum += sample.toDouble() * sample
-                }
-                pcm.write(bytes.array())
-                elapsed += FRAME_MS
-                // Desktop measures 8-bit samples (±128) against 42; 16-bit samples are 256 times larger.
-                val level = min(1.0, sqrt(sum / frame.size) / 256.0 / 42.0).toFloat()
-                onLevel(level)
-                val heardBefore = endOfSpeech.heardSpeech
-                val done = endOfSpeech.onFrame(level, elapsed)
-                if (endOfSpeech.heardSpeech && !heardBefore) onSpeech()
-                if (done) break
+            if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) return@withContext null
+            // Reads don't block, so cancelling and Finish reach the loop even when the microphone stops sending.
+            frames { frame, offset, length ->
+                val read = record.read(frame, offset, length, AudioRecord.READ_NON_BLOCKING)
+                if (read == AudioRecord.ERROR_DEAD_OBJECT) error("The microphone was disconnected.")
+                read
             }
         } finally {
             runCatching { record.stop() }
-            effects.forEach { it.release() }
+            // One that throws mustn't keep the microphone from being let go.
+            effects.forEach { runCatching { it.release() } }
             record.release()
-            onLevel(0f)
         }
-        Recording(wav(pcm.toByteArray()), "audio/wav", endOfSpeech.heardSpeech || finishRequested && pcm.size() > SAMPLE_RATE / 2)
-    }
-
-    override fun finish() {
-        finishRequested = true
-    }
-
-    /**
-     * The call microphone, with the phone's echo cancelling (and noise suppression) on it, so the voice coming out
-     * of the speaker is mostly gone from what it hears. The last [BargeIn.PRE_ROLL_MS] are always kept; once
-     * someone cuts in, the recording goes on from there until they pause.
-     */
-    @SuppressLint("MissingPermission") // Only during a voice chat, which asked for RECORD_AUDIO.
-    override suspend fun listenOver(
-        bargeIn: BargeIn,
-        playing: () -> Boolean,
-        onTrip: () -> Unit,
-        onLevel: (Float) -> Unit,
-        onListening: () -> Unit,
-        onMeter: (Float) -> Unit,
-    ): Recording? =
-        withContext(Dispatchers.IO) {
-            finishRequested = false
-            val minBuffer = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-            val record = try {
-                AudioRecord(
-                    MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-                    SAMPLE_RATE,
-                    AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT,
-                    maxOf(minBuffer, FRAME_SAMPLES * 2 * 4),
-                )
-            } catch (_: Exception) {
-                return@withContext null
-            }
-            if (record.state != AudioRecord.STATE_INITIALIZED) {
-                record.release()
-                return@withContext null
-            }
-            callAudio?.microphone?.let { record.preferredDevice = it }
-            val effects = ArrayList<AudioEffect>(2)
-            val frame = ShortArray(FRAME_SAMPLES)
-            val preRoll = ArrayDeque<ByteArray>()
-            val preRollFrames = (BargeIn.PRE_ROLL_MS / FRAME_MS).toInt()
-            val pcm = ByteArrayOutputStream()
-            var elapsed = 0L
-            var tripped = false
-            try {
-                // Inside the try, so the recorder is let go whatever they do; one that won't switch on is done without.
-                if (AcousticEchoCanceler.isAvailable()) runCatching { AcousticEchoCanceler.create(record.audioSessionId) }.getOrNull()?.let(effects::add)
-                if (NoiseSuppressor.isAvailable()) runCatching { NoiseSuppressor.create(record.audioSessionId) }.getOrNull()?.let(effects::add)
-                effects.forEach { runCatching { it.enabled = true } }
-                record.startRecording()
-                if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) return@withContext null
-                onListening()
-                while (true) {
-                    ensureActive()
-                    if (!record.readFrame(frame) { tripped && finishRequested }) break
-                    val bytes = ByteBuffer.allocate(frame.size * 2).order(ByteOrder.LITTLE_ENDIAN)
-                    var sum = 0.0
-                    for (sample in frame) {
-                        bytes.putShort(sample)
-                        sum += sample.toDouble() * sample
-                    }
-                    elapsed += FRAME_MS
-                    val level = min(1.0, sqrt(sum / frame.size) / 256.0 / 42.0).toFloat()
-                    onMeter(level)
-                    if (tripped) {
-                        pcm.write(bytes.array())
-                        onLevel(level)
-                    } else {
-                        preRoll.addLast(bytes.array())
-                        if (preRoll.size > preRollFrames) preRoll.removeFirst()
-                    }
-                    when (bargeIn.onFrame(level, elapsed, playing())) {
-                        BargeIn.Step.Tripped -> {
-                            tripped = true
-                            // Send now counts from here: one asked before anyone cut in isn't about what they say.
-                            finishRequested = false
-                            preRoll.forEach(pcm::write)
-                            preRoll.clear()
-                            onTrip()
-                        }
-                        BargeIn.Step.Done -> break
-                        BargeIn.Step.Waiting, BargeIn.Step.Hearing -> Unit
-                    }
-                    // Send now, once it has heard them.
-                    if (tripped && finishRequested) break
-                }
-            } finally {
-                runCatching { record.stop() }
-                // One that throws mustn't keep the microphone from being let go.
-                effects.forEach { runCatching { it.release() } }
-                record.release()
-                onLevel(0f)
-            }
-            Recording(wav(pcm.toByteArray()), "audio/wav", heardSpeech = bargeIn.spoke || finishRequested)
-        }
-
-    /**
-     * Fills [frame] with the next 20 ms, or returns false once [stop] says so. Reads don't block, so cancelling (and
-     * Finish) reach the caller even when the microphone stops sending; a whole frame each time keeps the level and
-     * the speech timers measuring 20 ms steps.
-     */
-    private suspend fun AudioRecord.readFrame(frame: ShortArray, stop: () -> Boolean): Boolean {
-        var filled = 0
-        var lastAudioAt = System.nanoTime()
-        while (filled < frame.size) {
-            currentCoroutineContext().ensureActive()
-            if (stop()) return false
-            val read = read(frame, filled, frame.size - filled, AudioRecord.READ_NON_BLOCKING)
-            when {
-                read == AudioRecord.ERROR_DEAD_OBJECT -> error("The microphone was disconnected.")
-                read < 0 -> error("Couldn't read from the microphone (error $read).")
-                read > 0 -> {
-                    filled += read
-                    lastAudioAt = System.nanoTime()
-                }
-                (System.nanoTime() - lastAudioAt) / NANOS_PER_MS >= noAudioMs -> error("The microphone stopped sending audio.")
-                else -> delay(FRAME_MS / 2)
-            }
-        }
-        return true
-    }
-
-    private fun wav(pcm: ByteArray): ByteArray {
-        val header = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN).apply {
-            put("RIFF".toByteArray())
-            putInt(36 + pcm.size)
-            put("WAVE".toByteArray())
-            put("fmt ".toByteArray())
-            putInt(16)
-            putShort(1) // PCM
-            putShort(1) // mono
-            putInt(SAMPLE_RATE)
-            putInt(SAMPLE_RATE * 2)
-            putShort(2)
-            putShort(16)
-            put("data".toByteArray())
-            putInt(pcm.size)
-        }
-        return header.array() + pcm
-    }
-
-    private companion object {
-        const val SAMPLE_RATE = 16_000
-        const val NANOS_PER_MS = 1_000_000L
-        const val NO_AUDIO_MS = 5_000L
-
-        /** 20 ms frames: fine-grained enough for the silence timer. */
-        const val FRAME_SAMPLES = SAMPLE_RATE / 50
-        const val FRAME_MS = 20L
     }
 }
 
