@@ -28,7 +28,8 @@ class HeraldWatch : Application() {
 
     val speech by lazy { SpeechOut(this) }
     val rings by lazy { WatchRings(this) }
-    val link by lazy { WatchLink(this, store, speech, scope, rings) }
+    // With it, what keeps the app in front while Hermes works on what was asked: there's nothing to keep before.
+    val link by lazy { WatchLink(this, store, speech, scope, rings).also { WatchOngoing(this, it, speech, rings, scope).start() } }
 
     /** Known to Herald alone: a call started by an intent ([MainActivity.answerCallIntent]) carries it, since any app can start that screen. */
     val callToken: String = UUID.randomUUID().toString()

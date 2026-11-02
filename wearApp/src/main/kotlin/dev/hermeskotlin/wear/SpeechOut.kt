@@ -25,6 +25,11 @@ class SpeechOut(private val context: Context) {
     private val _speaking = MutableStateFlow(false)
     val speaking: StateFlow<Boolean> = _speaking.asStateFlow()
 
+    private val _coming = MutableStateFlow(false)
+
+    /** The reply's voice is on its way ([expect]) and nothing of it has played yet. */
+    val coming: StateFlow<Boolean> = _coming.asStateFlow()
+
     private var askId: String? = null
     private val clips = sortedMapOf<Int, File>()
     private var next = 0
@@ -63,6 +68,18 @@ class SpeechOut(private val context: Context) {
         pump()
     }
 
+    /**
+     * The phone says the reply to [askId] will be heard, with its clips still to be made: [coming] until the first
+     * plays, it's stopped, or none comes in time.
+     */
+    fun expect(askId: String) {
+        if (askId == this.askId) return
+        stop()
+        this.askId = askId
+        _coming.value = true
+        main.postDelayed(giveUp, CLIP_WITHIN_MS)
+    }
+
     /** Reads [text] in the watch's own voice. */
     fun say(askId: String, text: String) {
         stop()
@@ -97,6 +114,7 @@ class SpeechOut(private val context: Context) {
         pendingSay = null
         tts?.stop()
         _speaking.value = false
+        _coming.value = false
     }
 
     fun release() {
@@ -115,6 +133,7 @@ class SpeechOut(private val context: Context) {
             return
         }
         _speaking.value = true
+        _coming.value = false
         val media = MediaPlayer()
         player = media
         playing = file

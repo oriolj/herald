@@ -659,6 +659,10 @@ class WatchLink(
             if (update.speech == ReplySpeech.Unavailable && update.askId != silenced && store.speak.value && update.text.isNotBlank()) {
                 if (_turn.value?.askId == update.askId) speech.say(update.askId, spokenText(update.text))
             }
+            // The gateway's voice is still being made: it's waited for as part of the reply.
+            if (update.speech == ReplySpeech.Coming && update.askId != silenced && store.speak.value && _turn.value?.askId == update.askId) {
+                speech.expect(update.askId)
+            }
         }
     }
 

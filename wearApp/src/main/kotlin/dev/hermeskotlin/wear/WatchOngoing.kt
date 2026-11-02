@@ -10,6 +10,7 @@ import android.content.pm.ServiceInfo
 import android.os.IBinder
 import android.os.SystemClock
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -17,6 +18,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.wear.ongoing.OngoingActivity
 import androidx.wear.ongoing.Status
+import dev.hermeskotlin.wearlink.ReplyPhase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,10 +27,69 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+
+/**
+ * Keeps the watch app in front while Hermes works on what was asked, and while the answer is read aloud: Wear OS
+ * goes back to the watch face after a while with nothing touched, which would leave the reply behind it. It's an
+ * Ongoing Activity ([ongoingWork]) with no service behind it, as nothing listens meanwhile; a call is one of its own
+ * ([CallService]).
+ */
+class WatchOngoing(
+    private val context: Context,
+    private val link: WatchLink,
+    private val speech: SpeechOut,
+    private val rings: WatchRings,
+    private val scope: CoroutineScope,
+) {
+    private val manager = NotificationManagerCompat.from(context)
+
+    init {
+        manager.createNotificationChannel(NotificationChannelCompat.Builder(WORK_CHANNEL, NotificationManagerCompat.IMPORTANCE_LOW).setName(context.getString(R.string.wear_channel_replies_name)).build())
+    }
+
+    // canRing checks the notification permission.
+    @SuppressLint("MissingPermission")
+    fun start() {
+        scope.launch {
+            // Only whether a call is on: its captions and levels change many times a second.
+            val inCall = link.call.map { it?.active == true }.distinctUntilChanged()
+            // From the first value: one left behind by an app that was ended mid-turn is taken down too.
+            combine(link.turn, inCall, speech.speaking, speech.coming, ::ongoingWork).distinctUntilChanged().collect { work ->
+                if (work != null && rings.canRing) {
+                    val line = context.getString(work)
+                    manager.notify(WORK_ID, ongoingNotification(context, WORK_CHANNEL, WORK_ID, R.drawable.ic_mic, line, NotificationCompat.CATEGORY_PROGRESS, Status.Builder().addTemplate(line).build()))
+                } else {
+                    manager.cancel(WORK_ID)
+                }
+            }
+        }
+    }
+
+    private companion object {
+        const val WORK_CHANNEL = "reply_ongoing"
+        const val WORK_ID = 7_002
+    }
+}
+
+/**
+ * What the watch says it's doing while it waits on Hermes outside a call: at work on what was asked (the answer's
+ * voice still [voiceComing] included), or reading the answer aloud. Null otherwise, and while Hermes waits on an
+ * answer given on the phone, which is where the user is. A line of its own, not the talk screen's activity, so the
+ * notification isn't posted again with each tool Hermes runs.
+ */
+@StringRes
+internal fun ongoingWork(turn: WatchTurn?, inCall: Boolean, speaking: Boolean, voiceComing: Boolean): Int? = when {
+    inCall -> null
+    speaking -> R.string.wear_ongoing_speaking
+    voiceComing -> R.string.wear_ongoing_working
+    turn?.running == true && turn.update.phase != ReplyPhase.WaitingOnPhone -> R.string.wear_ongoing_working
+    else -> null
+}
 
 /** An ongoing notification that's an Ongoing Activity: [status] on the watch face, and a tap back to the talk screen. */
 internal fun ongoingNotification(

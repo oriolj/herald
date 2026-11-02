@@ -101,4 +101,9 @@
 
     <!-- A call held in front: its notification channel -->
     <string name="wear_channel_call_name">通话</string>
+
+    <!-- Hermes at work outside a call: what keeps the app in front, and its channel -->
+    <string name="wear_channel_replies_name">回复</string>
+    <string name="wear_ongoing_working">Hermes 正在处理</string>
+    <string name="wear_ongoing_speaking">Hermes 正在说话</string>
 </resources>

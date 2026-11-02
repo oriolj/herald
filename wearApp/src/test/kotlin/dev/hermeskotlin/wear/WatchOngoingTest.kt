@@ -1,5 +1,7 @@
 package dev.hermeskotlin.wear
 
+import dev.hermeskotlin.wearlink.ReplyPhase
+import dev.hermeskotlin.wearlink.ReplyUpdate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -28,5 +30,25 @@ class WatchOngoingTest {
     fun whatTheCallSaysAlongTheWayDoesntPostItAgain() {
         val live = WatchCallState("c1", CallStage.Live, liveSince = 1_000L)
         assertEquals(ongoingCall(live), ongoingCall(live.copy(caption = "Hello", speaking = true, level = 0.4f, muted = true, thinking = true)))
+    }
+
+    private fun turn(phase: ReplyPhase) = WatchTurn("a1", "What's on today?", ReplyUpdate("a1", phase))
+
+    @Test
+    fun hermesAtWorkOrSpeakingIsKeptInFrontOutsideACall() {
+        assertEquals(R.string.wear_ongoing_working, ongoingWork(turn(ReplyPhase.Sending), inCall = false, speaking = false, voiceComing = false))
+        assertEquals(R.string.wear_ongoing_working, ongoingWork(turn(ReplyPhase.Working), inCall = false, speaking = false, voiceComing = false))
+        // The reply read aloud after the turn is done.
+        assertEquals(R.string.wear_ongoing_speaking, ongoingWork(turn(ReplyPhase.Done), inCall = false, speaking = true, voiceComing = false))
+        // Done, its voice still being made: not let go before it's heard.
+        assertEquals(R.string.wear_ongoing_working, ongoingWork(turn(ReplyPhase.Done), inCall = false, speaking = false, voiceComing = true))
+        assertNull(ongoingWork(turn(ReplyPhase.Done), inCall = false, speaking = false, voiceComing = false))
+        assertNull(ongoingWork(null, inCall = false, speaking = false, voiceComing = false))
+    }
+
+    @Test
+    fun noneWhileACallHasItOrTheAnswerIsOnThePhone() {
+        assertNull(ongoingWork(turn(ReplyPhase.Working), inCall = true, speaking = true, voiceComing = false))
+        assertNull(ongoingWork(turn(ReplyPhase.WaitingOnPhone), inCall = false, speaking = false, voiceComing = false))
     }
 }
