@@ -98,4 +98,7 @@
     <string name="wear_assistant_set">按键由 Kyllene 响应</string>
     <string name="wear_assistant_refused">未设置。点按重试</string>
     <string name="wear_assistant_unset">将 Kyllene 设为助理</string>
+
+    <!-- A call held in front: its notification channel -->
+    <string name="wear_channel_call_name">通话</string>
 </resources>

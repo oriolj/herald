@@ -98,4 +98,7 @@
     <string name="wear_assistant_set">A Kyllene válaszol a gombra</string>
     <string name="wear_assistant_refused">Nincs beállítva. Koppints az újrapróbáláshoz</string>
     <string name="wear_assistant_unset">A Kyllene beállítása asszisztensként</string>
+
+    <!-- A call held in front: its notification channel -->
+    <string name="wear_channel_call_name">Hívások</string>
 </resources>

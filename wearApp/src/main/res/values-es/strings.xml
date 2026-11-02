@@ -98,4 +98,7 @@
     <string name="wear_assistant_set">Kyllene responde al botón</string>
     <string name="wear_assistant_refused">Sin configurar. Toca para reintentar</string>
     <string name="wear_assistant_unset">Usar Kyllene como asistente</string>
+
+    <!-- A call held in front: its notification channel -->
+    <string name="wear_channel_call_name">Llamadas</string>
 </resources>

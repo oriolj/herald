@@ -88,6 +88,8 @@ data class WatchCallState(
     val level: Float = 0f,
     /** When it went live, on [android.os.SystemClock.elapsedRealtime], for the time on the call. */
     val liveSince: Long? = null,
+    /** The chat called, as the watch knows it when the call starts. */
+    val title: String? = null,
 ) {
     val active: Boolean get() = stage != CallStage.Ended
 }
@@ -314,10 +316,12 @@ class WatchLink(
         callEventsSeq = 0
         callSends = InOrder { batch -> watchCall?.let { call -> batch.events.forEach(call::send) } }
         _turn.value = null
-        _call.value = WatchCallState(id, CallStage.Starting)
         val chat = store.chat.value
+        _call.value = WatchCallState(id, CallStage.Starting, title = chat.title)
         if (defaultRequestId != null && resolvedDefault != defaultRequestId) return finishCall(id, say(R.string.wear_default_call_target_changed))
         if (defaultRequestId == null && chat.botProfile != null && !botChats) return finishCall(id, say(R.string.wear_update_for_bot_calls))
+        // Now, from the tap, while the app is in front: the call goes on out of sight. It stops itself as the call ends.
+        CallService.start(context)
         val generation = _profileReset.value
         callJob = scope.launch(main) {
             if (!synchronizeProfile()) return@launch finishCall(id, notConnected)

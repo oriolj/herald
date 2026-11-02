@@ -98,4 +98,7 @@
     <string name="wear_assistant_set">Kyllene antwortet auf die Taste</string>
     <string name="wear_assistant_refused">Nicht gesetzt. Tippe für einen neuen Versuch</string>
     <string name="wear_assistant_unset">Kyllene als Assistent festlegen</string>
+
+    <!-- A call held in front: its notification channel -->
+    <string name="wear_channel_call_name">Anrufe</string>
 </resources>

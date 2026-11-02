@@ -98,6 +98,8 @@ dependencies {
     implementation(libs.wear.protolayout)
     implementation(libs.wear.protolayout.material3)
     implementation(libs.wear.complications.data.source)
+    // A call keeps the app in front, and the watch face shows the way back (an Ongoing Activity).
+    implementation(libs.wear.ongoing)
     // Live voice calls, held on the watch.
     implementation(libs.webrtc.android)
     implementation(libs.play.services.wearable)

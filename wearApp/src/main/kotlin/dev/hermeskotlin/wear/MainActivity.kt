@@ -19,6 +19,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -112,10 +114,11 @@ class MainActivity : ComponentActivity() {
                 listening.value = Listening()
             }
         }
-        // A call keeps the screen on: with it off, the activity stops, and the call with it.
+        // A call not held in front (CallService refused, or not in front yet) keeps the screen on: with it off, the
+        // activity stops, and the call with it.
         lifecycleScope.launch {
-            app.link.call.collect { call ->
-                if (call?.active == true) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            combine(app.link.call, CallService.holding) { call, holding -> call?.active == true && !holding }.distinctUntilChanged().collect { keepOn ->
+                if (keepOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         }
@@ -170,13 +173,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        // Out of sight, a recording or a call would go on hearing the room.
+        // Out of sight, a recording would go on hearing the room, and so would a call, unless it's held in front
+        // (CallService): then it's on the watch face, and goes on with the screen off until it's ended.
         recordingJob?.cancel()
         if (!isChangingConfigurations) {
             defaultCallJob?.cancel()
             permissionDefault = null
             callPermissionPending = false
-            app.link.endCall()
+            if (!CallService.holding.value) app.link.endCall()
         }
     }
 
@@ -296,6 +300,12 @@ class MainActivity : ComponentActivity() {
         fun callIntent(context: Context): Intent = Intent(context, MainActivity::class.java).putExtra(EXTRA_CALL, true)
 
         fun listenIntent(context: Context): Intent = Intent(context, MainActivity::class.java).putExtra(EXTRA_LISTEN, true)
+
+        /** The talk screen as it was, from a notification: brought back, nothing started. */
+        fun openIntent(context: Context): Intent = Intent(context, MainActivity::class.java)
+
+        /** [openIntent]'s request code, apart from [callIntent]'s (0), so neither's PendingIntent takes the other's place. */
+        const val OPEN_REQUEST = 1
 
         /** A ring answered: starts the call in the watch's chat, which [WatchLink.answerRing] just set. */
         fun answerCallIntent(context: Context): Intent = Intent(context, MainActivity::class.java)

@@ -6,6 +6,9 @@
 
     <!-- When the watch has no speech recognizer of its own, it records and the gateway transcribes. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- A call keeps the microphone through the screen going off or the watch face coming up (CallService). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <!-- A live voice call goes from the watch straight to the voice model, over Wi-Fi or mobile data when there is
          some (it asks for them), the call's audio routed as a call. -->
@@ -81,6 +84,12 @@
         <receiver
             android:name=".RingDeclineReceiver"
             android:exported="false" />
+
+        <!-- A call held on the watch: its Ongoing Activity, and the microphone while the app is out of sight. -->
+        <service
+            android:name=".CallService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
 
         <!-- Herald on the phone answers here: the turn's updates, the chats, its status, and the reply's voice. -->
         <service
