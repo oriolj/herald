@@ -12,6 +12,8 @@ import dev.hermeskotlin.core.storage.EncryptedKeyValueStore
 import dev.hermeskotlin.core.storage.KeyValueStore
 import dev.hermeskotlin.core.voice.AndroidDeviceDictation
 import dev.hermeskotlin.core.voice.AndroidLiveCall
+import dev.hermeskotlin.core.voice.AndroidMediaButtons
+import dev.hermeskotlin.core.voice.MediaButtons
 import dev.hermeskotlin.core.voice.DeviceDictation
 import dev.hermeskotlin.core.voice.DeviceLock
 import android.app.KeyguardManager
@@ -37,8 +39,10 @@ actual val platformModule: Module = module {
     single { WallpaperStore(FileBlobFile(File(androidContext().filesDir, "wallpaper.jpg")), get()) }
     // One for the app: the recorder and the player follow it while a voice chat plays as a call.
     single { AndroidCallAudio(androidContext()) }
+    single { AndroidMediaButtons(androidContext()) }
+    single<MediaButtons> { get<AndroidMediaButtons>() }
     factory<VoiceRecorder> { AndroidVoiceRecorder(get()) }
-    single<SpeechPlayer> { AndroidSpeechPlayer(androidContext(), get()) }
+    single<SpeechPlayer> { AndroidSpeechPlayer(androidContext(), get(), get()) }
     single<ReadAloudVoices> { FileReadAloudVoices(File(androidContext().cacheDir, "read-aloud")) }
     // One per screen, like the recorder: the chat and the assistant panel each stop only their own.
     factory<DeviceDictation> { AndroidDeviceDictation(androidContext()) }

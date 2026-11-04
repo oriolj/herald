@@ -261,10 +261,6 @@
     <string name="settings_voice_keep_screen_on">保持屏幕常亮</string>
     <string name="settings_voice_keep_screen_on_detail">在语音对话期间保持常亮，方便把手机放在支架上跟着看。</string>
 
-    <!-- Voice: the voice chat played through the call channel -->
-    <string name="settings_voice_call_audio">通话音频</string>
-    <string name="settings_voice_call_audio_detail">语音对话通过车载或耳机的通话声道播放，这样它们的静音键可以使用。关闭后，它会像音乐一样播放。</string>
-
     <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
     <string name="settings_voice_cut_in_gate_detail">在回复时说话，只要声音高于语音对话设置中的噪音线，回复就会停下。</string>
     <string name="settings_voice_cut_in_detail">在回复时说话会让它停下。在车里，请在语音对话设置中设置一条噪音线。</string>
@@ -277,4 +273,11 @@
     <!-- Voice: the sounds for your turn and for having heard you -->
     <string name="settings_voice_sounds">提示音</string>
     <string name="settings_voice_sounds_detail">语音对话开始收听时播放上升音，收到你说的话后播放下降音。</string>
+
+    <!-- Voice: the voice chat played like a call or like media -->
+    <string name="settings_voice_audio">语音对话音频</string>
+    <string name="settings_voice_audio_call">通话</string>
+    <string name="settings_voice_audio_media">媒体</string>
+    <string name="settings_voice_audio_call_detail">像打电话一样，通过车载或耳机的通话声道和麦克风播放，这样它们的静音键可以使用。</string>
+    <string name="settings_voice_audio_media_detail">像音乐一样。播放/暂停会发送你说的话（按键说话时：说话并发送），下一首会跳过回复。</string>
 </resources>

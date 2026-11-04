@@ -21,6 +21,8 @@ import dev.hermeskotlin.core.voice.CUE_SAMPLE_RATE
 import dev.hermeskotlin.core.voice.DeviceDictation
 import dev.hermeskotlin.core.voice.DeviceDictationUnavailable
 import dev.hermeskotlin.core.voice.LiveCalls
+import dev.hermeskotlin.core.voice.MediaButton
+import dev.hermeskotlin.core.voice.MediaButtons
 import dev.hermeskotlin.core.voice.ReadAloudVoices
 import dev.hermeskotlin.core.voice.InMemoryReadAloudVoices
 import dev.hermeskotlin.core.voice.VoiceKeepAlive
@@ -169,6 +171,8 @@ class VoiceController(
     private val speechStreams: SpeechStreams? = null,
     /** An approval is only taken by voice while the phone is unlocked. */
     private val deviceLock: DeviceLock = DeviceLock.None,
+    /** The media buttons, for the chained chat when it plays like media. */
+    private val mediaButtons: MediaButtons = MediaButtons.None,
     private val liveCalls: LiveCalls? = null,
 ) {
     private val _chat = MutableStateFlow(VoiceChatState())
@@ -313,8 +317,11 @@ class VoiceController(
     /** Desktop's chained voice chat: listen, send what you said, read the reply aloud, until it ends. */
     private suspend fun converseChained(session: ChatSession, gateway: GatewayUrl, profile: String?, pauseMs: Long, opener: CallReason?, asCall: Boolean) = coroutineScope {
         // Before anything plays or listens: the car's call channel takes a moment to open.
-        val closeAudio = (if (asCall) player.chainedCallAudio() else null) ?: player.chainedChatAudio()
+        val call = if (asCall) player.chainedCallAudio() else null
+        val closeAudio = call ?: player.chainedChatAudio()
         chainedAudio = closeAudio
+        // Played like media, the car's or the headset's media buttons work it instead of the music app's.
+        val closeButtons = if (call == null) mediaButtons.hold(::onMediaButton) else null
         appScope.launch { audio.ttsLease(gateway, active = true, profile) }
         // Read while the first listen goes on; it's needed once the first reply is on its way.
         val settings = async { audio.bargeIn(gateway, profile) }
@@ -358,6 +365,7 @@ class VoiceController(
             // The sound for what was said goes with the chat, and before the audio it plays on.
             withContext(NonCancellable) { gotIt?.cancelAndJoin() }
             gotIt = null
+            closeButtons?.invoke()
             appScope.launch { audio.ttsLease(gateway, active = false, profile) }
             if (chainedAudio === closeAudio) chainedAudio = null
             closeAudio()
@@ -436,6 +444,22 @@ class VoiceController(
         // Push to talk opens the microphone itself.
         if (on && _chat.value.muted && live == null) toggleMute()
         _chat.update { if (it.phase == VoicePhase.Off || it.live) it else it.copy(pushToTalk = on) }
+    }
+
+    /**
+     * A media button in the chat played like media. Play/Pause sends what's been heard, or in push to talk talks (over
+     * Hermes too) and sends; over a reply hands-free, it skips it. Next skips the reply.
+     */
+    private fun onMediaButton(button: MediaButton) {
+        val now = _chat.value
+        when (button) {
+            MediaButton.Next -> if (now.phase == VoicePhase.Speaking) skipSpeech()
+            MediaButton.PlayPause -> when {
+                talkButton(now) != null -> talk()
+                canSendNow(now) -> sendNow()
+                now.phase == VoicePhase.Speaking -> skipSpeech()
+            }
+        }
     }
 
     /**

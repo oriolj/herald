@@ -263,10 +263,6 @@
     <string name="settings_voice_keep_screen_on">Garder l’écran allumé</string>
     <string name="settings_voice_keep_screen_on_detail">Pendant un chat vocal, pour le suivre avec le téléphone sur un support.</string>
 
-    <!-- Voice: the voice chat played through the call channel -->
-    <string name="settings_voice_call_audio">Audio d’appel</string>
-    <string name="settings_voice_call_audio_detail">Un chat vocal passe par le canal d’appel de la voiture ou du casque, pour que sa sourdine fonctionne. Désactivé, il est lu comme de la musique.</string>
-
     <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
     <string name="settings_voice_cut_in_gate_detail">Parler par-dessus une réponse l’arrête, dès que c’est plus fort que la ligne de bruit réglée dans les réglages du chat vocal.</string>
     <string name="settings_voice_cut_in_detail">Parler par-dessus une réponse l’arrête. En voiture, réglez une ligne de bruit dans les réglages du chat vocal.</string>
@@ -279,4 +275,11 @@
     <!-- Voice: the sounds for your turn and for having heard you -->
     <string name="settings_voice_sounds">Sons</string>
     <string name="settings_voice_sounds_detail">Un son montant quand le chat vocal commence à écouter, un son descendant dès qu’il a ce que vous avez dit.</string>
+
+    <!-- Voice: the voice chat played like a call or like media -->
+    <string name="settings_voice_audio">Audio du chat vocal</string>
+    <string name="settings_voice_audio_call">Appel</string>
+    <string name="settings_voice_audio_media">Média</string>
+    <string name="settings_voice_audio_call_detail">Comme un appel, par le canal d’appel et le micro de la voiture ou du casque, pour que sa sourdine fonctionne.</string>
+    <string name="settings_voice_audio_media_detail">Comme de la musique. Lecture/pause envoie ce que vous avez dit (en appuyer pour parler : parler et envoyer) ; Suivant passe la réponse.</string>
 </resources>

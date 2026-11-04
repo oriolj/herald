@@ -263,10 +263,6 @@
     <string name="settings_voice_keep_screen_on">Képernyő bekapcsolva tartása</string>
     <string name="settings_voice_keep_screen_on_detail">Hangcsevegés közben, hogy tartóban lévő telefonnal is követhesd.</string>
 
-    <!-- Voice: the voice chat played through the call channel -->
-    <string name="settings_voice_call_audio">Hívás hangja</string>
-    <string name="settings_voice_call_audio_detail">A hangcsevegés az autó vagy a headset hívási csatornáján szól, így működik a némítása. Kikapcsolva zeneként szól.</string>
-
     <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
     <string name="settings_voice_cut_in_gate_detail">Ha egy válasz közben beszélsz, az leáll, amint hangosabb vagy a hangcsevegés beállításaiban megadott zajvonalnál.</string>
     <string name="settings_voice_cut_in_detail">Ha egy válasz közben beszélsz, az leáll. Autóban állíts be zajvonalat a hangcsevegés beállításaiban.</string>
@@ -279,4 +275,11 @@
     <!-- Voice: the sounds for your turn and for having heard you -->
     <string name="settings_voice_sounds">Hangjelzések</string>
     <string name="settings_voice_sounds_detail">Emelkedő hang, amikor a hangcsevegés figyelni kezd, és ereszkedő, amint megvan, amit mondtál.</string>
+
+    <!-- Voice: the voice chat played like a call or like media -->
+    <string name="settings_voice_audio">Hangcsevegés hangja</string>
+    <string name="settings_voice_audio_call">Hívás</string>
+    <string name="settings_voice_audio_media">Média</string>
+    <string name="settings_voice_audio_call_detail">Mint egy telefonhívás, az autó vagy a headset hívási csatornáján és mikrofonján, így működik a némítása.</string>
+    <string name="settings_voice_audio_media_detail">Mint a zene. A lejátszás/szünet elküldi, amit mondtál (Nyomd és beszélj módban: beszéd és küldés), a következő kihagyja a választ.</string>
 </resources>

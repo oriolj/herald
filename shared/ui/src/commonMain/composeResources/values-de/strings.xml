@@ -263,10 +263,6 @@
     <string name="settings_voice_keep_screen_on">Bildschirm anlassen</string>
     <string name="settings_voice_keep_screen_on_detail">Während eines Sprachchats, damit du ihm mit dem Telefon in einer Halterung folgen kannst.</string>
 
-    <!-- Voice: the voice chat played through the call channel -->
-    <string name="settings_voice_call_audio">Anruf-Audio</string>
-    <string name="settings_voice_call_audio_detail">Ein Sprachchat spricht über den Anrufkanal des Autos oder Headsets, damit dessen Stummschaltung funktioniert. Aus, spielt er wie Musik.</string>
-
     <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
     <string name="settings_voice_cut_in_gate_detail">Wenn du über eine Antwort sprichst, hört sie auf, sobald du lauter bist als die Geräuschlinie aus den Einstellungen des Sprachchats.</string>
     <string name="settings_voice_cut_in_detail">Wenn du über eine Antwort sprichst, hört sie auf. Im Auto setz eine Geräuschlinie in den Einstellungen des Sprachchats.</string>
@@ -279,4 +275,11 @@
     <!-- Voice: the sounds for your turn and for having heard you -->
     <string name="settings_voice_sounds">Töne</string>
     <string name="settings_voice_sounds_detail">Ein steigender Ton, wenn der Sprachchat zuzuhören beginnt, ein fallender, sobald er hat, was du gesagt hast.</string>
+
+    <!-- Voice: the voice chat played like a call or like media -->
+    <string name="settings_voice_audio">Audio des Sprachchats</string>
+    <string name="settings_voice_audio_call">Anruf</string>
+    <string name="settings_voice_audio_media">Medien</string>
+    <string name="settings_voice_audio_call_detail">Wie ein Telefonanruf, über den Anrufkanal und das Mikrofon des Autos oder Headsets, damit dessen Stummschaltung funktioniert.</string>
+    <string name="settings_voice_audio_media_detail">Wie Musik. Play/Pause sendet, was du gesagt hast (bei Push-to-Talk: sprechen und senden), Weiter überspringt die Antwort.</string>
 </resources>

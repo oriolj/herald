@@ -257,9 +257,14 @@ class AndroidVoiceRecorder(
 
 /**
  * Plays each reply clip from a cache file with [MediaPlayer], and streamed speech straight into an
- * [AudioTrack] as it arrives, as assistant audio, or as a call's while a chained voice chat plays as one ([callAudio]).
+ * [AudioTrack] as it arrives, as assistant audio: as a call's while a chained voice chat plays as one ([callAudio]),
+ * and as media while it takes the media buttons ([mediaButtons]), which Android sends to the app that last played media.
  */
-class AndroidSpeechPlayer(private val context: Context, private val callAudio: AndroidCallAudio = AndroidCallAudio(context)) : SpeechPlayer {
+class AndroidSpeechPlayer(
+    private val context: Context,
+    private val callAudio: AndroidCallAudio = AndroidCallAudio(context),
+    private val mediaButtons: AndroidMediaButtons = AndroidMediaButtons(context),
+) : SpeechPlayer {
     override suspend fun playRingback() {
         val bytes = withContext(Dispatchers.IO) { context.assets.open("call_ringback.wav").use { it.readBytes() } }
         play(SpokenAudio(bytes, "audio/wav"))
@@ -431,7 +436,11 @@ class AndroidSpeechPlayer(private val context: Context, private val callAudio: A
     }
 
     /** A call's voice goes down the call channel; the assistant's would stay on the media one, the car's music. */
-    private fun usage() = if (callAudio.on) AudioAttributes.USAGE_VOICE_COMMUNICATION else AudioAttributes.USAGE_ASSISTANT
+    private fun usage() = when {
+        callAudio.on -> AudioAttributes.USAGE_VOICE_COMMUNICATION
+        mediaButtons.on -> AudioAttributes.USAGE_MEDIA
+        else -> AudioAttributes.USAGE_ASSISTANT
+    }
 
     private companion object {
         const val POLL_MS = 50L

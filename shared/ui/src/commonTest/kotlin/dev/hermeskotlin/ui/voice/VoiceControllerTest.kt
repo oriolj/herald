@@ -42,9 +42,12 @@ import dev.hermeskotlin.core.voice.VoiceCue
 import dev.hermeskotlin.core.voice.cuePcm
 import dev.hermeskotlin.ui.JvmOnly
 import kotlinx.coroutines.channels.ReceiveChannel
+import dev.hermeskotlin.core.voice.MediaButton
+import dev.hermeskotlin.core.voice.MediaButtons
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import dev.hermeskotlin.ui.resources.Res
@@ -769,6 +772,81 @@ class VoiceControllerTest {
         testScheduler.runCurrent()
 
         assertEquals(listOf("listen: words"), log)
+        voice.stopChat()
+    }
+
+    /** Media buttons the test presses itself. */
+    private class FakeButtons : MediaButtons {
+        var onPress: ((MediaButton) -> Unit)? = null
+        var released = 0
+        override fun hold(onPress: (MediaButton) -> Unit): (() -> Unit)? {
+            this.onPress = onPress
+            return {
+                released++
+                this.onPress = null
+            }
+        }
+    }
+
+    @Test
+    fun playedLikeMediaPlayPauseSendsWhatWasSaid() = runTest {
+        val recorder = NoPauseRecorder()
+        val buttons = FakeButtons()
+        val voice = VoiceController(audio("Stop.", Requests()), recorder, FakePlayer(), backgroundScope, backgroundScope, mediaButtons = buttons)
+
+        voice.startChat(offlineSession(), gateway, null)
+        voice.chat.first { it.hearing }
+        buttons.onPress!!(MediaButton.PlayPause)
+
+        // Sent ("stop", which ends the chat), and the buttons go back to the music app.
+        voice.chat.first { it.phase == VoicePhase.Off }
+        assertEquals(1, recorder.finishes)
+        assertEquals(1, buttons.released)
+    }
+
+    @Test
+    fun playedLikeMediaInPushToTalkPlayPauseTalks() = runTest {
+        val recorder = TalkRecorder()
+        val buttons = FakeButtons()
+        val voice = VoiceController(audio("unused", Requests()), recorder, FakePlayer(), backgroundScope, backgroundScope, mediaButtons = buttons)
+        voice.setPushToTalk(true)
+
+        voice.startChat(offlineSession(), gateway, null)
+        voice.chat.first { it.waitingToTalk }
+        buttons.onPress!!(MediaButton.PlayPause)
+
+        recorder.recording.first { it }
+        voice.stopChat()
+    }
+
+    @Test
+    fun aChatPlayedAsACallLeavesTheMediaButtonsAlone() = runTest {
+        val recorder = ListeningRecorder()
+        val buttons = FakeButtons()
+        val voice = VoiceController(
+            audio("unused", Requests()), recorder, RoutedPlayer(), backgroundScope, backgroundScope, mediaButtons = buttons,
+        )
+
+        voice.startChat(offlineSession(), gateway, null, asCall = true)
+        recorder.listening.await()
+
+        assertNull(buttons.onPress)
+        voice.stopChat()
+    }
+
+    /** A car's call channel that won't open: it plays like media, so the buttons are its own again. */
+    @Test
+    fun aChatThatCantPlayAsACallTakesTheMediaButtons() = runTest {
+        val recorder = ListeningRecorder()
+        val buttons = FakeButtons()
+        val voice = VoiceController(
+            audio("unused", Requests()), recorder, RoutedPlayer(canCall = false), backgroundScope, backgroundScope, mediaButtons = buttons,
+        )
+
+        voice.startChat(offlineSession(), gateway, null, asCall = true)
+        recorder.listening.await()
+
+        assertNotNull(buttons.onPress)
         voice.stopChat()
     }
 

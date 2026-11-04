@@ -263,10 +263,6 @@
     <string name="settings_voice_keep_screen_on">Keep the screen on</string>
     <string name="settings_voice_keep_screen_on_detail">During a voice chat, so you can follow it with the phone in a holder.</string>
 
-    <!-- Voice: the voice chat played through the call channel -->
-    <string name="settings_voice_call_audio">Call audio</string>
-    <string name="settings_voice_call_audio_detail">A voice chat talks through the car’s or headset’s call channel, so its mute works. Off, it plays like music.</string>
-
     <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
     <string name="settings_voice_cut_in_gate_detail">Talking over a reply stops it, once it’s louder than the noise line set in the voice chat’s settings.</string>
     <string name="settings_voice_cut_in_detail">Talking over a reply stops it. In a car, set a noise line from the voice chat’s settings.</string>
@@ -279,4 +275,11 @@
     <!-- Voice: the sounds for your turn and for having heard you -->
     <string name="settings_voice_sounds">Sounds</string>
     <string name="settings_voice_sounds_detail">A rising tone when the voice chat starts listening, a falling one once it has what you said.</string>
+
+    <!-- Voice: the voice chat played like a call or like media -->
+    <string name="settings_voice_audio">Voice chat audio</string>
+    <string name="settings_voice_audio_call">Call</string>
+    <string name="settings_voice_audio_media">Media</string>
+    <string name="settings_voice_audio_call_detail">Like a phone call, through the car’s or headset’s call channel and its microphone, so its mute works.</string>
+    <string name="settings_voice_audio_media_detail">Like music. Play/pause sends what you said (in push to talk, talks and sends), next skips the reply.</string>
 </resources>

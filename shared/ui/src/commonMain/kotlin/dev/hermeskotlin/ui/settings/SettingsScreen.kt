@@ -761,12 +761,18 @@ internal fun SettingsView(
                         onCheckedChange = { on -> onUpdate { it.copy(voiceKeepScreenOn = on) } },
                     )
                     Divider()
-                    SwitchRow(
-                        title = stringResource(Res.string.settings_voice_call_audio),
-                        detail = stringResource(Res.string.settings_voice_call_audio_detail),
-                        checked = settings.voiceCallAudio,
-                        onCheckedChange = { on -> onUpdate { it.copy(voiceCallAudio = on) } },
-                    )
+                    Field(
+                        stringResource(Res.string.settings_voice_audio),
+                        detail = stringResource(if (settings.voiceCallAudio) Res.string.settings_voice_audio_call_detail else Res.string.settings_voice_audio_media_detail),
+                    ) {
+                        val audioLabels = mapOf(true to stringResource(Res.string.settings_voice_audio_call), false to stringResource(Res.string.settings_voice_audio_media))
+                        SegmentedControl(
+                            options = listOf(true, false),
+                            selected = settings.voiceCallAudio,
+                            onSelect = { call -> onUpdate { it.copy(voiceCallAudio = call) } },
+                            optionLabel = { audioLabels.getValue(it) },
+                        )
+                    }
                     Divider()
                     SwitchRow(
                         title = stringResource(Res.string.voice_cut_in),

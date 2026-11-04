@@ -263,10 +263,6 @@
     <string name="settings_voice_keep_screen_on">Manter a tela ligada</string>
     <string name="settings_voice_keep_screen_on_detail">Durante uma conversa por voz, para acompanhá-la com o telefone em um suporte.</string>
 
-    <!-- Voice: the voice chat played through the call channel -->
-    <string name="settings_voice_call_audio">Áudio de chamada</string>
-    <string name="settings_voice_call_audio_detail">A conversa por voz usa o canal de chamadas do carro ou do fone, para o mudo dele funcionar. Desligado, toca como música.</string>
-
     <!-- Voice: cutting in by talking (the title is voice_cut_in) -->
     <string name="settings_voice_cut_in_gate_detail">Falar por cima de uma resposta faz ela parar, assim que estiver mais alto que a linha de ruído definida nas configurações da conversa por voz.</string>
     <string name="settings_voice_cut_in_detail">Falar por cima de uma resposta faz ela parar. No carro, defina uma linha de ruído nas configurações da conversa por voz.</string>
@@ -279,4 +275,11 @@
     <!-- Voice: the sounds for your turn and for having heard you -->
     <string name="settings_voice_sounds">Sons</string>
     <string name="settings_voice_sounds_detail">Um tom subindo quando a conversa por voz começa a ouvir, e um descendo quando ela já tem o que você disse.</string>
+
+    <!-- Voice: the voice chat played like a call or like media -->
+    <string name="settings_voice_audio">Áudio da conversa por voz</string>
+    <string name="settings_voice_audio_call">Chamada</string>
+    <string name="settings_voice_audio_media">Mídia</string>
+    <string name="settings_voice_audio_call_detail">Como uma chamada, pelo canal de chamadas e o microfone do carro ou do fone, para o mudo dele funcionar.</string>
+    <string name="settings_voice_audio_media_detail">Como música. Play/pause envia o que você disse (no toque para falar: fala e envia); próxima pula a resposta.</string>
 </resources>
