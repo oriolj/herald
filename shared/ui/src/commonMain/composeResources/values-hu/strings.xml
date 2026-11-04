@@ -275,4 +275,8 @@
     <string name="settings_voice_listens">A hangcsevegés figyel</string>
     <string name="settings_voice_push_to_talk_detail">A mikrofonra koppintástól a Küldésre koppintásig: a zaj semmit sem küld, és csak egy koppintás szól közbe.</string>
     <string name="settings_voice_hands_free_detail">Magától, és elküldi, amint szünetet tartasz.</string>
+
+    <!-- Voice: the sounds for your turn and for having heard you -->
+    <string name="settings_voice_sounds">Hangjelzések</string>
+    <string name="settings_voice_sounds_detail">Emelkedő hang, amikor a hangcsevegés figyelni kezd, és ereszkedő, amint megvan, amit mondtál.</string>
 </resources>

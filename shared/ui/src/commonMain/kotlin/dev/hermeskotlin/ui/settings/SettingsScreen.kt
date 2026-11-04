@@ -748,6 +748,13 @@ internal fun SettingsView(
                     }
                     Divider()
                     SwitchRow(
+                        title = stringResource(Res.string.settings_voice_sounds),
+                        detail = stringResource(Res.string.settings_voice_sounds_detail),
+                        checked = settings.voiceCues,
+                        onCheckedChange = { on -> onUpdate { it.copy(voiceCues = on) } },
+                    )
+                    Divider()
+                    SwitchRow(
                         title = stringResource(Res.string.settings_voice_keep_screen_on),
                         detail = stringResource(Res.string.settings_voice_keep_screen_on_detail),
                         checked = settings.voiceKeepScreenOn,

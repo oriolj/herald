@@ -17,6 +17,7 @@ import dev.hermeskotlin.core.settings.DictationEngine
 import dev.hermeskotlin.core.voice.AudioApi
 import dev.hermeskotlin.core.voice.BargeIn
 import dev.hermeskotlin.core.voice.BargeInSettings
+import dev.hermeskotlin.core.voice.CUE_SAMPLE_RATE
 import dev.hermeskotlin.core.voice.DeviceDictation
 import dev.hermeskotlin.core.voice.DeviceDictationUnavailable
 import dev.hermeskotlin.core.voice.LiveCalls
@@ -31,6 +32,7 @@ import dev.hermeskotlin.core.voice.SpeechStreams
 import dev.hermeskotlin.core.voice.SpokenAudio
 import dev.hermeskotlin.core.voice.VoiceActivity
 import dev.hermeskotlin.core.voice.VoiceAnswers
+import dev.hermeskotlin.core.voice.VoiceCue
 import dev.hermeskotlin.core.voice.DeviceLock
 import dev.hermeskotlin.core.voice.VoiceRecorder
 import dev.hermeskotlin.core.voice.isTtsEcho
@@ -192,6 +194,12 @@ class VoiceController(
     private val pushToTalk = MutableStateFlow(false)
     private val talkTaps = Channel<Unit>(Channel.CONFLATED)
     @kotlin.concurrent.Volatile private var talking = false
+    /** The chat's sounds ([setCues]): off until the settings say. */
+    @kotlin.concurrent.Volatile private var cues = false
+    /** The last listen heard nothing, so the next one, right after it, opens without its sound again. */
+    private var lastListenQuiet = false
+    /** The sound for what was said ([VoiceCue.GotIt]), playing alongside its transcription. */
+    private var gotIt: Job? = null
 
     private var chatJob: Job? = null
     private var stoppedByUser = false
@@ -251,6 +259,7 @@ class VoiceController(
         // Connecting while it checks for a live call: nothing listens yet, so Mute isn't offered until it does.
         _chat.value = VoiceChatState(VoicePhase.Connecting, pushToTalk = pushToTalk.value)
         room.clear()
+        lastListenQuiet = false
         stoppedByUser = false
         roomFloor = 0f
         noSpeechStream = null
@@ -346,6 +355,9 @@ class VoiceController(
             bargeIn = null
             // A newer chat may have started while this one wound down; it keeps its own.
             if (chained === running) chained = null
+            // The sound for what was said goes with the chat, and before the audio it plays on.
+            withContext(NonCancellable) { gotIt?.cancelAndJoin() }
+            gotIt = null
             appScope.launch { audio.ttsLease(gateway, active = false, profile) }
             if (chainedAudio === closeAudio) chainedAudio = null
             closeAudio()
@@ -427,6 +439,33 @@ class VoiceController(
     }
 
     /**
+     * The chained chat's sounds: one as the microphone opens for you, another once what you said is taken, so it can
+     * be followed without looking ([VoiceCue]).
+     */
+    fun setCues(on: Boolean) {
+        cues = on
+    }
+
+    /**
+     * Plays [cue] to its end, where the sounds are on. Not with the microphone open: the room's floor would take it in,
+     * and it could pass for speech.
+     */
+    private suspend fun cue(cue: VoiceCue) {
+        if (!cues) return
+        val pcm = Channel<ByteArray>(1).apply {
+            trySend(cue.pcm)
+            close()
+        }
+        try {
+            player.playPcm(CUE_SAMPLE_RATE, 1, pcm)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // A sound that can't play isn't worth stopping the chat for.
+        }
+    }
+
+    /**
      * Push to talk's one button. Waiting, it starts listening; listening, it sends what was said; while Hermes talks
      * or works, it holds the voice and listens, so what's said next cuts in.
      */
@@ -448,13 +487,14 @@ class VoiceController(
     }
 
     /**
-     * Follows this phone's voice settings as they change: cutting in and its gate ([setCutIn]), and push to talk
-     * ([setPushToTalk]) where [withPushToTalk]: a call that rings stays hands-free.
+     * Follows this phone's voice settings as they change: cutting in and its gate ([setCutIn]), the sounds ([setCues]),
+     * and push to talk ([setPushToTalk]) where [withPushToTalk]: a call that rings stays hands-free.
      */
     fun follow(settings: Flow<AppSettings?>, withPushToTalk: Boolean = true) {
         val prefs = settings.filterNotNull()
         // The noise meter moves the gate mid-reply.
         scope.launch { prefs.map { it.voiceCutIn to it.voiceCutInGate }.distinctUntilChanged().collect { (on, gate) -> setCutIn(on, gate) } }
+        scope.launch { prefs.map { it.voiceCues }.distinctUntilChanged().collect(::setCues) }
         if (withPushToTalk) scope.launch { prefs.map { it.voicePushToTalk }.distinctUntilChanged().collect(::setPushToTalk) }
     }
 
@@ -613,6 +653,8 @@ class VoiceController(
         if (pushToTalk.value) return talkOver(activity, tripped)
         val settings = bargeIn?.await() ?: return null
         if (!settings.enabled || cantListenOver) return null
+        // Not with the sound for what was said still playing: it could pass for someone cutting in, or for the room.
+        gotIt?.join()
         while (true) {
             // Muted: the microphone stays shut over the reply too, and listens again once unmuted.
             _chat.first { !it.muted }
@@ -682,6 +724,7 @@ class VoiceController(
 
     /** Push to talk over the voice: a tap on Talk holds it, and what's said up to the tap on Send is what cut in. */
     private suspend fun talkOver(activity: VoiceActivity, tripped: CompletableDeferred<Unit>): Recording? {
+        dropTalkTaps()
         if (!waitForTalk()) return null
         tripped.complete(Unit)
         return talkRecording(activity)
@@ -715,6 +758,7 @@ class VoiceController(
                 return null
             }
             val transcript = heard?.let {
+                // No sound here: the voice is held, and a sound would start over it, or in its place when let go.
                 _chat.update { it.copy(phase = VoicePhase.Transcribing, level = 0f, hearing = false) }
                 (audio.transcribe(gateway, it.bytes, it.mimeType, profile) as? ApiResult.Success)?.value?.trim()
             }.orEmpty()
@@ -833,11 +877,17 @@ class VoiceController(
     /** What's said next, as [Heard] tells. An error on show stays through silence, and goes once words come. */
     private suspend fun hear(gateway: GatewayUrl, profile: String?, activity: VoiceActivity): Heard {
         while (true) {
-            _chat.update { it.copy(phase = VoicePhase.Listening, level = 0f, hearing = false) }
+            // Push to talk waits for its tap from here, through the sound too: a tap during it is for this listen, one
+            // from before isn't.
+            val ptt = pushToTalk.value
+            if (ptt) dropTalkTaps()
+            _chat.update { it.copy(phase = VoicePhase.Listening, level = 0f, hearing = false, waitingToTalk = ptt) }
             // Muted: the microphone stays shut until it's unmuted, between turns and for a question asked aloud alike.
             _chat.first { !it.muted }
+            // Your turn, once: not again on each listen after one that heard nobody.
+            if (!lastListenQuiet) cue(VoiceCue.YourTurn)
             val recording = try {
-                if (pushToTalk.value && waitForTalk(waiting = true)) talkRecording(activity) else unlessMuted({ null }) {
+                if (ptt && waitForTalk(waiting = true)) talkRecording(activity) else unlessMuted({ null }) {
                     recorder.record(
                         activity,
                         onLevel = { level ->
@@ -856,8 +906,11 @@ class VoiceController(
             }
             // Cut off by Mute: the sentence is dropped, and it listens afresh once unmuted.
             if (recording == null) continue
+            lastListenQuiet = !recording.heardSpeech
             if (!recording.heardSpeech) return Heard.Silence
             _chat.update { it.copy(phase = VoicePhase.Transcribing, level = 0f, hearing = false) }
+            // Taken: alongside the transcription, which needn't wait for it. The listen over the reply does ([listenOver]).
+            gotIt = CoroutineScope(currentCoroutineContext()).launch { cue(VoiceCue.GotIt) }
             val transcript = when (val result = audio.transcribe(gateway, recording.bytes, recording.mimeType, profile)) {
                 is ApiResult.Success -> result.value
                 else -> {
@@ -898,12 +951,16 @@ class VoiceController(
         }
     }
 
+    /** Taps on Talk from before a wait for one ([waitForTalk]): they aren't for it. */
+    private fun dropTalkTaps() {
+        while (talkTaps.tryReceive().isSuccess) Unit
+    }
+
     /**
-     * Waits for a tap on Talk, true; false once it's hands-free again instead. A tap from before it waited isn't
-     * for this. [waiting]: the microphone is closed meanwhile, as the screen says.
+     * Waits for a tap on Talk, true; false once it's hands-free again instead. Taps from before are dropped by the
+     * caller ([dropTalkTaps]). [waiting]: the microphone is closed meanwhile, as the screen says.
      */
     private suspend fun waitForTalk(waiting: Boolean = false): Boolean {
-        while (talkTaps.tryReceive().isSuccess) Unit
         if (waiting) _chat.update { it.copy(waitingToTalk = true) }
         try {
             return merge(talkTaps.receiveAsFlow().map { true }, pushToTalk.filter { !it }.map { false }).first()

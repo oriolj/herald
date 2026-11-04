@@ -273,4 +273,8 @@
     <string name="settings_voice_listens">语音对话的收听方式</string>
     <string name="settings_voice_push_to_talk_detail">从点按麦克风到点按发送：噪音不会发送任何内容，只有点按才能打断。</string>
     <string name="settings_voice_hands_free_detail">自动收听，你一停顿就发送。</string>
+
+    <!-- Voice: the sounds for your turn and for having heard you -->
+    <string name="settings_voice_sounds">提示音</string>
+    <string name="settings_voice_sounds_detail">语音对话开始收听时播放上升音，收到你说的话后播放下降音。</string>
 </resources>

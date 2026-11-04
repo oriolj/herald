@@ -275,4 +275,8 @@
     <string name="settings_voice_listens">El chat de voz escucha</string>
     <string name="settings_voice_push_to_talk_detail">Desde que tocas el micrófono hasta que tocas Enviar: el ruido no envía nada y solo un toque interrumpe.</string>
     <string name="settings_voice_hands_free_detail">Solo, y envía en cuanto haces una pausa.</string>
+
+    <!-- Voice: the sounds for your turn and for having heard you -->
+    <string name="settings_voice_sounds">Sonidos</string>
+    <string name="settings_voice_sounds_detail">Un tono ascendente cuando el chat de voz empieza a escuchar, y uno descendente cuando ya tiene lo que dijiste.</string>
 </resources>

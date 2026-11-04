@@ -19,6 +19,7 @@ import dev.hermeskotlin.core.voice.SpeechStream
 import dev.hermeskotlin.core.voice.SpeechStreamEvent
 import dev.hermeskotlin.core.voice.SpokenAudio
 import dev.hermeskotlin.core.voice.VoiceActivity
+import dev.hermeskotlin.core.voice.VoiceCue
 import dev.hermeskotlin.core.voice.VoiceRecorder
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -159,8 +160,15 @@ class StreamedSpeechTest {
         }
     }
 
-    /** [canHold]: the voice holds when someone seems to cut in; [holds] is each hold and letting go. */
-    private class Player(val fails: Boolean = false, val canHold: Boolean = false) : SpeechPlayer {
+    /**
+     * [canHold]: the voice holds when someone seems to cut in; [holds] is each hold and letting go. With [gotItEnds], it
+     * plays only the sounds ([VoiceCue]), the one for what was said lasting until it completes.
+     */
+    private class Player(
+        val fails: Boolean = false,
+        val canHold: Boolean = false,
+        val gotItEnds: CompletableDeferred<Unit>? = null,
+    ) : SpeechPlayer {
         var audioOpen = false
         override fun chainedChatAudio(): () -> Unit {
             audioOpen = true
@@ -182,6 +190,10 @@ class StreamedSpeechTest {
         }
 
         override suspend fun playPcm(sampleRate: Int, channels: Int, chunks: ReceiveChannel<ByteArray>, onSound: (Boolean) -> Unit) {
+            if (gotItEnds != null) {
+                if (chunks.receive().contentEquals(VoiceCue.GotIt.pcm)) gotItEnds.await()
+                return
+            }
             rate = sampleRate
             this.channels = channels
             pcm = chunks
@@ -233,6 +245,8 @@ class StreamedSpeechTest {
         config: String = """{"ok":true}""",
         /** Runs as each recording goes to be written down, by its number from 1. */
         transcribing: suspend (Int) -> Unit = {},
+        /** The chat's sounds ([VoiceController.setCues]). */
+        cues: Boolean = false,
         streams: () -> SpeechStream?,
     ): Setup {
         val spoken = mutableListOf<String>()
@@ -265,6 +279,7 @@ class StreamedSpeechTest {
         val session = ChatSession(gateway, null, null, connection, SessionsApi(client), backgroundScope)
         session.start()
         val voice = VoiceController(AudioApi(client), recorder, player, backgroundScope, backgroundScope, speechStreams = { _, _ -> streams() })
+        voice.setCues(cues)
         voice.startChat(session, gateway, "rin")
         socket.submits.first { it.isNotEmpty() }
         return Setup(socket, voice, player, spoken)
@@ -435,6 +450,40 @@ class StreamedSpeechTest {
         setup.socket.event("message.complete", """{"text":"It was a long day.","status":"interrupted"}""")
         setup.socket.submits.first { it.size == 2 }
         assertEquals("Wait, what about tomorrow?", setup.socket.submits.value[1]["params"]!!.jsonObject["text"]!!.jsonPrimitive.content)
+        setup.voice.stopChat()
+    }
+
+    @Test
+    fun theListenOverTheAgentWaitsForTheSoundOfWhatWasSaid() = runTest {
+        val recorder = CutsIn()
+        val gotItEnds = CompletableDeferred<Unit>()
+        val setup = chat(player = Player(gotItEnds = gotItEnds), recorder = recorder, cues = true) { null }
+
+        // Sent while the sound still plays: the microphone stays closed over the agent at work meanwhile, so the
+        // sound can't pass for someone cutting in, nor for the room.
+        testScheduler.advanceTimeBy(1_000)
+        testScheduler.runCurrent()
+        assertEquals(0, recorder.listening.value)
+
+        gotItEnds.complete(Unit)
+        recorder.listening.first { it >= 1 }
+        setup.voice.stopChat()
+    }
+
+    @Test
+    fun cuttingInTurnedOffWhileTheSoundPlaysStaysOff() = runTest {
+        val recorder = CutsIn()
+        val gotItEnds = CompletableDeferred<Unit>()
+        val setup = chat(player = Player(gotItEnds = gotItEnds), recorder = recorder, cues = true) { null }
+        testScheduler.advanceTimeBy(1_000)
+        testScheduler.runCurrent()
+
+        // Off while the listen over the agent waits for the sound: it doesn't open once the sound ends.
+        setup.voice.setCutIn(false, 0f)
+        gotItEnds.complete(Unit)
+        testScheduler.advanceTimeBy(1_000)
+        testScheduler.runCurrent()
+        assertEquals(0, recorder.listening.value)
         setup.voice.stopChat()
     }
 

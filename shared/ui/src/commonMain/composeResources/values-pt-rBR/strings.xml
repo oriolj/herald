@@ -275,4 +275,8 @@
     <string name="settings_voice_listens">A conversa por voz ouve</string>
     <string name="settings_voice_push_to_talk_detail">Do toque no microfone até o toque em Enviar: o ruído não envia nada e só um toque interrompe.</string>
     <string name="settings_voice_hands_free_detail">Sozinha, e envia assim que você faz uma pausa.</string>
+
+    <!-- Voice: the sounds for your turn and for having heard you -->
+    <string name="settings_voice_sounds">Sons</string>
+    <string name="settings_voice_sounds_detail">Um tom subindo quando a conversa por voz começa a ouvir, e um descendo quando ela já tem o que você disse.</string>
 </resources>

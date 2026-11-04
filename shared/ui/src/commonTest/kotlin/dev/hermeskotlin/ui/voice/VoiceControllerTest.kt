@@ -38,7 +38,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import dev.hermeskotlin.core.voice.VoiceCue
+import dev.hermeskotlin.core.voice.cuePcm
 import dev.hermeskotlin.ui.JvmOnly
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -634,6 +637,69 @@ class VoiceControllerTest {
         assertEquals(1, recorder.recordings)
     }
 
+    /** Plays each sound until the test lets it end ([done]); [playing] is the one playing now. */
+    private class SlowCuePlayer : SpeechPlayer {
+        val playing = MutableStateFlow<VoiceCue?>(null)
+        val done = CompletableDeferred<Unit>()
+        override suspend fun play(audio: SpokenAudio) = Unit
+        override suspend fun playPcm(sampleRate: Int, channels: Int, chunks: ReceiveChannel<ByteArray>, onSound: (Boolean) -> Unit) {
+            val pcm = chunks.receive()
+            playing.value = VoiceCue.entries.firstOrNull { pcm.contentEquals(it.pcm) }
+            try {
+                done.await()
+            } finally {
+                playing.value = null
+            }
+        }
+    }
+
+    /** Plays the sound for what was said ([playing]) until it's stopped; the others at once. */
+    private class EndlessGotItPlayer : SpeechPlayer {
+        val playing = MutableStateFlow(false)
+        override suspend fun play(audio: SpokenAudio) = Unit
+        override suspend fun playPcm(sampleRate: Int, channels: Int, chunks: ReceiveChannel<ByteArray>, onSound: (Boolean) -> Unit) {
+            if (!chunks.receive().contentEquals(VoiceCue.GotIt.pcm)) return
+            playing.value = true
+            try {
+                awaitCancellation()
+            } finally {
+                playing.value = false
+            }
+        }
+    }
+
+    @Test
+    fun theSoundForWhatWasSaidEndsWithTheChat() = runTest {
+        val player = EndlessGotItPlayer()
+        val voice = VoiceController(audio("unused", Requests()), FakeRecorder(), player, backgroundScope, backgroundScope)
+        voice.setCues(true)
+        voice.startChat(offlineSession(), gateway, null)
+        player.playing.first { it }
+
+        voice.stopChat()
+        voice.chat.first { it.phase == VoicePhase.Off }
+        assertTrue(!player.playing.value)
+    }
+
+    @Test
+    fun aTapOnTalkWhileItsSoundPlaysIsKept() = runTest {
+        val recorder = TalkRecorder()
+        val player = SlowCuePlayer()
+        val voice = VoiceController(audio("unused", Requests()), recorder, player, backgroundScope, backgroundScope)
+        voice.setPushToTalk(true)
+        voice.setCues(true)
+        voice.startChat(offlineSession(), gateway, null)
+        player.playing.first { it == VoiceCue.YourTurn }
+
+        // The microphone isn't open yet: the button talks, it doesn't send; and the tap counts once the sound ends.
+        assertEquals(TalkButton.Talk, talkButton(voice.chat.value))
+        voice.talk()
+        player.done.complete(Unit)
+
+        recorder.recording.first { it }
+        voice.stopChat()
+    }
+
     @Test
     fun pushToTalksButtonFollowsTheChat() {
         val ptt = VoiceChatState(VoicePhase.Listening, pushToTalk = true)
@@ -647,6 +713,63 @@ class VoiceControllerTest {
         assertNull(talkButton(VoiceChatState(VoicePhase.Listening)))
         assertNull(talkButton(ptt.copy(live = true)))
         assertTrue(!canSendNow(ptt.copy(hearing = true)))
+    }
+
+    /** Plays nothing, logging each sound into [log] alongside the recorder's listens. */
+    private class CuePlayer(private val log: MutableList<String>) : SpeechPlayer {
+        override suspend fun play(audio: SpokenAudio) = Unit
+        override suspend fun playPcm(sampleRate: Int, channels: Int, chunks: ReceiveChannel<ByteArray>, onSound: (Boolean) -> Unit) {
+            val pcm = chunks.receive()
+            log += if (pcm.contentEquals(cuePcm(VoiceCue.YourTurn))) "your turn" else if (pcm.contentEquals(cuePcm(VoiceCue.GotIt))) "got it" else "voice"
+        }
+    }
+
+    /** Hears speech or nothing, listen by listen as [heard] says, logging each into [log], then waits for good. */
+    private class LoggedRecorder(private val log: MutableList<String>, private vararg val heard: Boolean) : VoiceRecorder {
+        val waiting = CompletableDeferred<Unit>()
+        private var listens = 0
+        override suspend fun record(activity: VoiceActivity, onLevel: (Float) -> Unit, onSpeech: () -> Unit): Recording {
+            val speech = heard.getOrNull(listens++) ?: run {
+                waiting.complete(Unit)
+                awaitCancellation()
+            }
+            log += if (speech) "listen: words" else "listen: nobody"
+            if (speech) onSpeech()
+            return Recording(byteArrayOf(1, 2, 3), "audio/wav", speech)
+        }
+
+        override fun finish() = Unit
+    }
+
+    @Test
+    fun soundsSayWhenItListensAndWhenItHasWhatWasSaid() = runTest {
+        val log = mutableListOf<String>()
+        // Words that can't be sent (no gateway), then nobody twice.
+        val recorder = LoggedRecorder(log, true, false, false)
+        val voice = VoiceController(audio("Check the backup", Requests()), recorder, CuePlayer(log), backgroundScope, backgroundScope)
+        voice.setCues(true)
+
+        voice.startChat(offlineSession(), gateway, null)
+        recorder.waiting.await()
+        testScheduler.runCurrent()
+
+        // Each sound before or after the microphone, never during; and not again on each listen after one that heard nobody.
+        assertEquals(listOf("your turn", "listen: words", "got it", "your turn", "listen: nobody", "listen: nobody"), log)
+        voice.stopChat()
+    }
+
+    @Test
+    fun soundsOffPlayNothing() = runTest {
+        val log = mutableListOf<String>()
+        val recorder = LoggedRecorder(log, true)
+        val voice = VoiceController(audio("Check the backup", Requests()), recorder, CuePlayer(log), backgroundScope, backgroundScope)
+
+        voice.startChat(offlineSession(), gateway, null)
+        recorder.waiting.await()
+        testScheduler.runCurrent()
+
+        assertEquals(listOf("listen: words"), log)
+        voice.stopChat()
     }
 
     /** A chat that never connects: these voice chats end before anything is sent. */

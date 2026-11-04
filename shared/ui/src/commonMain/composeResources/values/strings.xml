@@ -275,4 +275,8 @@
     <string name="settings_voice_listens">Voice chat listens</string>
     <string name="settings_voice_push_to_talk_detail">From a tap on the microphone to the tap on Send: noise sends nothing, and only a tap cuts in.</string>
     <string name="settings_voice_hands_free_detail">On its own, and sends once you pause.</string>
+
+    <!-- Voice: the sounds for your turn and for having heard you -->
+    <string name="settings_voice_sounds">Sounds</string>
+    <string name="settings_voice_sounds_detail">A rising tone when the voice chat starts listening, a falling one once it has what you said.</string>
 </resources>

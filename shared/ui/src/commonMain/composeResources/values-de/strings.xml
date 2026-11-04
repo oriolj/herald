@@ -275,4 +275,8 @@
     <string name="settings_voice_listens">Sprachchat hört zu</string>
     <string name="settings_voice_push_to_talk_detail">Vom Tippen aufs Mikrofon bis zum Tippen auf Senden: Geräusche senden nichts, und nur ein Tippen unterbricht.</string>
     <string name="settings_voice_hands_free_detail">Von selbst, und sendet, sobald du eine Pause machst.</string>
+
+    <!-- Voice: the sounds for your turn and for having heard you -->
+    <string name="settings_voice_sounds">Töne</string>
+    <string name="settings_voice_sounds_detail">Ein steigender Ton, wenn der Sprachchat zuzuhören beginnt, ein fallender, sobald er hat, was du gesagt hast.</string>
 </resources>

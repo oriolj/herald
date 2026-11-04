@@ -275,4 +275,8 @@
     <string name="settings_voice_listens">Le chat vocal écoute</string>
     <string name="settings_voice_push_to_talk_detail">Du toucher sur le micro jusqu’au toucher sur Envoyer : le bruit n’envoie rien, et seul un toucher interrompt.</string>
     <string name="settings_voice_hands_free_detail">Tout seul, et envoie dès que vous faites une pause.</string>
+
+    <!-- Voice: the sounds for your turn and for having heard you -->
+    <string name="settings_voice_sounds">Sons</string>
+    <string name="settings_voice_sounds_detail">Un son montant quand le chat vocal commence à écouter, un son descendant dès qu’il a ce que vous avez dit.</string>
 </resources>
