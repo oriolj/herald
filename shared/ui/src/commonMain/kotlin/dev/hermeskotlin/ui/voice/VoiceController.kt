@@ -192,7 +192,8 @@ class VoiceController(
 
     /**
      * [pauseMs] is how long a quiet spell after speech has to last before it's sent. [opener]: a call the agent placed,
-     * which the voice opens by saying why.
+     * which the voice opens by saying why. [asCall]: the chained chat plays and hears as a phone call, through the car's
+     * or the headset's call channel (a GPT-Live call always does).
      */
     fun startChat(
         session: ChatSession,
@@ -201,6 +202,7 @@ class VoiceController(
         pauseMs: Long = VoiceActivity().silenceMs,
         opener: CallReason? = null,
         ringback: Boolean = false,
+        asCall: Boolean = false,
     ) {
         if (chatJob?.isActive == true) return
         cancelDictation()
@@ -237,7 +239,7 @@ class VoiceController(
             try {
                 if (startLive(session, gateway, profile, opener) { ringing?.cancelAndJoin() }) return@launch
                 ringing?.cancelAndJoin()
-                converseChained(session, gateway, profile, pauseMs, opener)
+                converseChained(session, gateway, profile, pauseMs, opener, asCall)
             } finally {
                 ringing?.cancel()
 
@@ -259,8 +261,9 @@ class VoiceController(
     }
 
     /** Desktop's chained voice chat: listen, send what you said, read the reply aloud, until it ends. */
-    private suspend fun converseChained(session: ChatSession, gateway: GatewayUrl, profile: String?, pauseMs: Long, opener: CallReason?) = coroutineScope {
-        val closeAudio = player.chainedChatAudio()
+    private suspend fun converseChained(session: ChatSession, gateway: GatewayUrl, profile: String?, pauseMs: Long, opener: CallReason?, asCall: Boolean) = coroutineScope {
+        // Before anything plays or listens: the car's call channel takes a moment to open.
+        val closeAudio = (if (asCall) player.chainedCallAudio() else null) ?: player.chainedChatAudio()
         chainedAudio = closeAudio
         appScope.launch { audio.ttsLease(gateway, active = true, profile) }
         // Read while the first listen goes on; it's needed once the first reply is on its way.

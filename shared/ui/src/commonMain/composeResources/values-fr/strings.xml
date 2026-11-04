@@ -262,4 +262,8 @@
     <!-- Voice: keeping the screen on during a voice chat -->
     <string name="settings_voice_keep_screen_on">Garder l’écran allumé</string>
     <string name="settings_voice_keep_screen_on_detail">Pendant un chat vocal, pour le suivre avec le téléphone sur un support.</string>
+
+    <!-- Voice: the voice chat played through the call channel -->
+    <string name="settings_voice_call_audio">Audio d’appel</string>
+    <string name="settings_voice_call_audio_detail">Un chat vocal passe par le canal d’appel de la voiture ou du casque, pour que sa sourdine fonctionne. Désactivé, il est lu comme de la musique.</string>
 </resources>

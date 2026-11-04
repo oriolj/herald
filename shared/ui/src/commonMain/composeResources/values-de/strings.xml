@@ -262,4 +262,8 @@
     <!-- Voice: keeping the screen on during a voice chat -->
     <string name="settings_voice_keep_screen_on">Bildschirm anlassen</string>
     <string name="settings_voice_keep_screen_on_detail">Während eines Sprachchats, damit du ihm mit dem Telefon in einer Halterung folgen kannst.</string>
+
+    <!-- Voice: the voice chat played through the call channel -->
+    <string name="settings_voice_call_audio">Anruf-Audio</string>
+    <string name="settings_voice_call_audio_detail">Ein Sprachchat spricht über den Anrufkanal des Autos oder Headsets, damit dessen Stummschaltung funktioniert. Aus, spielt er wie Musik.</string>
 </resources>

@@ -260,4 +260,8 @@
     <!-- Voice: keeping the screen on during a voice chat -->
     <string name="settings_voice_keep_screen_on">保持屏幕常亮</string>
     <string name="settings_voice_keep_screen_on_detail">在语音对话期间保持常亮，方便把手机放在支架上跟着看。</string>
+
+    <!-- Voice: the voice chat played through the call channel -->
+    <string name="settings_voice_call_audio">通话音频</string>
+    <string name="settings_voice_call_audio_detail">语音对话通过车载或耳机的通话声道播放，这样它们的静音键可以使用。关闭后，它会像音乐一样播放。</string>
 </resources>

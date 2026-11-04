@@ -165,6 +165,14 @@ interface SpeechPlayer {
      */
     fun chainedChatAudio(): () -> Unit = {}
 
+    /**
+     * Instead of [chainedChatAudio], a chained chat's audio as a phone call: played and heard through the car's or the
+     * headset's call channel (so their own buttons, mute among them, work on it), else the phone's speaker and
+     * microphone, with the phone's call processing. The returned action restores it, like [chainedChatAudio]'s. Null
+     * when it can't be: the chat then uses [chainedChatAudio].
+     */
+    suspend fun chainedCallAudio(): (() -> Unit)? = null
+
     /** Plays the local connection cue once; cancelling stops it. Unsupported devices stay silent. */
     suspend fun playRingback() = Unit
 

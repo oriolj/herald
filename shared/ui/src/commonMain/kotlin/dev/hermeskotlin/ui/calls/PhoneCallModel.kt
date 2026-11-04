@@ -112,8 +112,8 @@ class PhoneCallModel(
             }
             // On the line: the agent hears it was answered, and the voice opens with why it called.
             call.agent?.end(CallOutcome.Answered)
-            val pause = (settings.settings.value ?: AppSettings()).voicePause
-            voice.startChat(chat.session, chat.gateway, chat.profile, pause.millis, opener = call.agent?.reason)
+            val prefs = settings.settings.value ?: AppSettings()
+            voice.startChat(chat.session, chat.gateway, chat.profile, prefs.voicePause.millis, opener = call.agent?.reason, asCall = prefs.voiceCallAudio)
             // A new chat gets its id with the first request: it's held from then on.
             if (call.storedSessionId == null) {
                 launch { relay.callChat(chat.session.state.mapNotNull { it.storedSessionId }.first()) }

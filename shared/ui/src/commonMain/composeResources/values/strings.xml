@@ -262,4 +262,8 @@
     <!-- Voice: keeping the screen on during a voice chat -->
     <string name="settings_voice_keep_screen_on">Keep the screen on</string>
     <string name="settings_voice_keep_screen_on_detail">During a voice chat, so you can follow it with the phone in a holder.</string>
+
+    <!-- Voice: the voice chat played through the call channel -->
+    <string name="settings_voice_call_audio">Call audio</string>
+    <string name="settings_voice_call_audio_detail">A voice chat talks through the car’s or headset’s call channel, so its mute works. Off, it plays like music.</string>
 </resources>

@@ -262,4 +262,8 @@
     <!-- Voice: keeping the screen on during a voice chat -->
     <string name="settings_voice_keep_screen_on">Képernyő bekapcsolva tartása</string>
     <string name="settings_voice_keep_screen_on_detail">Hangcsevegés közben, hogy tartóban lévő telefonnal is követhesd.</string>
+
+    <!-- Voice: the voice chat played through the call channel -->
+    <string name="settings_voice_call_audio">Hívás hangja</string>
+    <string name="settings_voice_call_audio_detail">A hangcsevegés az autó vagy a headset hívási csatornáján szól, így működik a némítása. Kikapcsolva zeneként szól.</string>
 </resources>

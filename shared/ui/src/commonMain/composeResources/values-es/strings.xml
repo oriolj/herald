@@ -262,4 +262,8 @@
     <!-- Voice: keeping the screen on during a voice chat -->
     <string name="settings_voice_keep_screen_on">Mantener la pantalla encendida</string>
     <string name="settings_voice_keep_screen_on_detail">Durante un chat de voz, para seguirlo con el teléfono en un soporte.</string>
+
+    <!-- Voice: the voice chat played through the call channel -->
+    <string name="settings_voice_call_audio">Audio de llamada</string>
+    <string name="settings_voice_call_audio_detail">El chat de voz suena por el canal de llamadas del coche o de los auriculares, para que funcione su silencio. Desactivado, suena como música.</string>
 </resources>

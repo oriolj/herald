@@ -740,6 +740,13 @@ internal fun SettingsView(
                         checked = settings.voiceKeepScreenOn,
                         onCheckedChange = { on -> onUpdate { it.copy(voiceKeepScreenOn = on) } },
                     )
+                    Divider()
+                    SwitchRow(
+                        title = stringResource(Res.string.settings_voice_call_audio),
+                        detail = stringResource(Res.string.settings_voice_call_audio_detail),
+                        checked = settings.voiceCallAudio,
+                        onCheckedChange = { on -> onUpdate { it.copy(voiceCallAudio = on) } },
+                    )
                 }
 
                 if (isDesktop) Section(stringResource(Res.string.settings_section_desktop)) {

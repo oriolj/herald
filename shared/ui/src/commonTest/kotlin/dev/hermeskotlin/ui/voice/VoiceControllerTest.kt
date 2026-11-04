@@ -40,6 +40,7 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import dev.hermeskotlin.ui.JvmOnly
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import dev.hermeskotlin.ui.resources.Res
@@ -421,6 +422,86 @@ class VoiceControllerTest {
         }
 
         override fun finish() = Unit
+    }
+
+    /** Listens until cancelled. */
+    private class ListeningRecorder : VoiceRecorder {
+        val listening = CompletableDeferred<Unit>()
+        override suspend fun record(activity: VoiceActivity, onLevel: (Float) -> Unit, onSpeech: () -> Unit): Recording {
+            listening.complete(Unit)
+            awaitCancellation()
+        }
+        override fun finish() = Unit
+    }
+
+    /** Call audio that's held or not, as the chat asks. */
+    /** [canCall]: it can play as a call. Which route a chat opened, and whether it's been closed. */
+    private class RoutedPlayer(private val canCall: Boolean = true) : SpeechPlayer by FakePlayer() {
+        var calls = 0
+        var chats = 0
+        var callClosed = false
+        var chatClosed = false
+
+        override suspend fun chainedCallAudio(): (() -> Unit)? {
+            calls++
+            return if (canCall) ({ callClosed = true }) else null
+        }
+
+        override fun chainedChatAudio(): () -> Unit {
+            chats++
+            return { chatClosed = true }
+        }
+    }
+
+    @Test
+    fun aVoiceChatAskedToPlaysAsACallUntilItEnds() = runTest {
+        val recorder = ListeningRecorder()
+        val player = RoutedPlayer()
+        val voice = VoiceController(audio("unused", Requests()), recorder, player, backgroundScope, backgroundScope)
+
+        voice.startChat(offlineSession(), gateway, null, asCall = true)
+        // Routed before it listens.
+        recorder.listening.await()
+        assertEquals(1, player.calls)
+        assertEquals(0, player.chats)
+        assertFalse(player.callClosed)
+
+        voice.stopChat()
+        voice.chat.first { it.phase == VoicePhase.Off }
+        assertTrue(player.callClosed)
+    }
+
+    @Test
+    fun aVoiceChatNotAskedHasTheUsualRoute() = runTest {
+        val recorder = ListeningRecorder()
+        val player = RoutedPlayer()
+        val voice = VoiceController(audio("unused", Requests()), recorder, player, backgroundScope, backgroundScope)
+
+        voice.startChat(offlineSession(), gateway, null)
+        recorder.listening.await()
+        assertEquals(0, player.calls)
+        assertEquals(1, player.chats)
+
+        voice.stopChat()
+        voice.chat.first { it.phase == VoicePhase.Off }
+        assertTrue(player.chatClosed)
+    }
+
+    /** A car's call channel that won't open: the chat has the usual route, which still reaches it. */
+    @Test
+    fun aVoiceChatThatCantPlayAsACallHasTheUsualRoute() = runTest {
+        val recorder = ListeningRecorder()
+        val player = RoutedPlayer(canCall = false)
+        val voice = VoiceController(audio("unused", Requests()), recorder, player, backgroundScope, backgroundScope)
+
+        voice.startChat(offlineSession(), gateway, null, asCall = true)
+        recorder.listening.await()
+        assertEquals(1, player.calls)
+        assertEquals(1, player.chats)
+
+        voice.stopChat()
+        voice.chat.first { it.phase == VoicePhase.Off }
+        assertTrue(player.chatClosed)
     }
 
     /** A chat that never connects: these voice chats end before anything is sent. */
