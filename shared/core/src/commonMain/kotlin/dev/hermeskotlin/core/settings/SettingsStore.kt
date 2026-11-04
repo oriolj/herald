@@ -105,7 +105,8 @@ data class AppSettings(
     val voiceKeepScreenOn: Boolean = true,
     /**
      * The voice chat plays and hears as a phone call: through the car's or the headset's call channel, so their own
-     * mute works on it, with the phone's call processing. Off, it plays like media. A GPT-Live call always is one.
+     * mute works on it, with the phone's call processing. Off, it plays like media, and takes the media buttons: Play/Pause
+     * sends, Next skips the reply. A GPT-Live call always is one.
      */
     val voiceCallAudio: Boolean = true,
     /** Talking over a reply cuts in, where the profile has it on too (`voice.barge_in`). */
