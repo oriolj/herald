@@ -212,7 +212,8 @@ class VoiceController(
 
     /**
      * [pauseMs] is how long a quiet spell after speech has to last before it's sent. [opener]: a call the agent placed,
-     * which the voice opens by saying why.
+     * which the voice opens by saying why. [asCall]: the chained chat plays and hears as a phone call, through the car's
+     * or the headset's call channel, or on the phone's own speaker with talk-over on (a GPT-Live call always does).
      */
     fun startChat(
         session: ChatSession,
@@ -221,6 +222,7 @@ class VoiceController(
         pauseMs: Long = VoiceActivity().silenceMs,
         opener: CallReason? = null,
         ringback: Boolean = false,
+        asCall: Boolean = false,
     ) {
         if (chatJob?.isActive == true) return
         cancelDictation()
@@ -261,7 +263,7 @@ class VoiceController(
                     return@launch
                 }
                 ringing?.cancelAndJoin()
-                converseChained(session, gateway, profile, pauseMs, opener, talkOver)
+                converseChained(session, gateway, profile, pauseMs, opener, talkOver, asCall)
             } finally {
                 ringing?.cancel()
 
@@ -313,11 +315,15 @@ class VoiceController(
         pauseMs: Long,
         opener: CallReason?,
         settings: Deferred<BargeInSettings>,
+        asCall: Boolean,
     ) = coroutineScope {
-        // Only talk-over needs call audio, for its echo cancelling. The route is settled before the first listen or
-        // the opener, since changing it under a recording or a voice clips them. A gateway that can't say has
-        // talk-over on, so it gets call audio.
-        val closeAudio: () -> Unit = if (settings.await().enabled) player.chainedChatAudio() else ({})
+        // The route is settled before the first listen or the opener, since changing it under a recording or a voice
+        // clips them, and the car's call channel takes a moment to open. A car or a headset plays as a call when
+        // asked; the phone's own speaker only has call audio with talk-over on, for its echo cancelling. A gateway
+        // that can't say has talk-over on, so it gets call audio.
+        val talkOver = settings.await().enabled
+        val closeAudio: () -> Unit = (if (asCall) player.chainedCallAudio(speaker = talkOver) else null)
+            ?: if (talkOver) player.chainedChatAudio() else ({})
         chainedAudio = closeAudio
         appScope.launch { audio.ttsLease(gateway, active = true, profile) }
         bargeIn = settings

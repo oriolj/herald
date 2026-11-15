@@ -108,6 +108,8 @@ class VoiceControllerTest {
          * settings, asked for before the first listen, are in by the time it looks; otherwise another thread.
          */
         dispatcher: CoroutineDispatcher? = null,
+        /** The profile's config, as `GET /api/config` gives it. */
+        config: String = """{"ok":true}""",
     ) = AudioApi(
         createHttpClient(
             MockEngine(MockEngineConfig().apply { dispatcher?.let { this.dispatcher = it } }.also { it.addHandler { request ->
@@ -120,6 +122,7 @@ class VoiceControllerTest {
                     } else {
                         respond("""{"ok":true,"transcript":"$transcript"}""", HttpStatusCode.OK, json)
                     }
+                    "/api/config" -> respond(config, HttpStatusCode.OK, json)
                     else -> respond("""{"ok":true}""", HttpStatusCode.OK, json)
                 }
             } }),
@@ -435,6 +438,123 @@ class VoiceControllerTest {
         }
 
         override fun finish() = Unit
+    }
+
+    /** Listens until cancelled. */
+    private class ListeningRecorder : VoiceRecorder {
+        val listening = CompletableDeferred<Unit>()
+        override suspend fun record(activity: VoiceActivity, onLevel: (Float) -> Unit, onSpeech: () -> Unit): Recording {
+            listening.complete(Unit)
+            awaitCancellation()
+        }
+        override fun finish() = Unit
+    }
+
+    /** Call audio that's held or not, as the chat asks. */
+    /** [canCall]: it can play as a call. Which route a chat opened, and whether it's been closed. */
+    private class RoutedPlayer(private val canCall: Boolean = true) : SpeechPlayer by FakePlayer() {
+        var calls = 0
+        var chats = 0
+        var callClosed = false
+        var chatClosed = false
+
+        /** What the last call was told of the phone's speaker. */
+        var speaker: Boolean? = null
+
+        override suspend fun chainedCallAudio(speaker: Boolean): (() -> Unit)? {
+            calls++
+            this.speaker = speaker
+            return if (canCall) ({ callClosed = true }) else null
+        }
+
+        override fun chainedChatAudio(): () -> Unit {
+            chats++
+            return { chatClosed = true }
+        }
+    }
+
+    @Test
+    fun aVoiceChatAskedToPlaysAsACallUntilItEnds() = runTest {
+        val recorder = ListeningRecorder()
+        val player = RoutedPlayer()
+        val voice = VoiceController(audio("unused", Requests()), recorder, player, backgroundScope, backgroundScope)
+
+        voice.startChat(offlineSession(), gateway, null, asCall = true)
+        // Routed before it listens.
+        recorder.listening.await()
+        assertEquals(1, player.calls)
+        assertEquals(0, player.chats)
+        assertFalse(player.callClosed)
+
+        voice.stopChat()
+        voice.chat.first { it.phase == VoicePhase.Off }
+        assertTrue(player.callClosed)
+    }
+
+    @Test
+    fun aVoiceChatNotAskedHasTheUsualRoute() = runTest {
+        val recorder = ListeningRecorder()
+        val player = RoutedPlayer()
+        val voice = VoiceController(audio("unused", Requests()), recorder, player, backgroundScope, backgroundScope)
+
+        voice.startChat(offlineSession(), gateway, null)
+        recorder.listening.await()
+        assertEquals(0, player.calls)
+        assertEquals(1, player.chats)
+
+        voice.stopChat()
+        voice.chat.first { it.phase == VoicePhase.Off }
+        assertTrue(player.chatClosed)
+    }
+
+    /** With talk-over off only a car or a headset plays as a call; the phone's own speaker keeps its usual route (#415). */
+    @Test
+    fun aVoiceChatWithTalkOverOffPlaysAsACallOffTheSpeakerOnly() = runTest {
+        val recorder = ListeningRecorder()
+        val player = RoutedPlayer(canCall = false)
+        val api = audio("unused", Requests(), config = """{"voice":{"barge_in":false}}""")
+        val voice = VoiceController(api, recorder, player, backgroundScope, backgroundScope)
+
+        voice.startChat(offlineSession(), gateway, null, asCall = true)
+        recorder.listening.await()
+        assertEquals(1, player.calls)
+        assertEquals(false, player.speaker)
+        // Nothing with a call channel: no call routing on the speaker either.
+        assertEquals(0, player.chats)
+
+        voice.stopChat()
+        voice.chat.first { it.phase == VoicePhase.Off }
+    }
+
+    @Test
+    fun aVoiceChatWithTalkOverOnMayPlayAsACallOnTheSpeaker() = runTest {
+        val recorder = ListeningRecorder()
+        val player = RoutedPlayer()
+        val voice = VoiceController(audio("unused", Requests()), recorder, player, backgroundScope, backgroundScope)
+
+        voice.startChat(offlineSession(), gateway, null, asCall = true)
+        recorder.listening.await()
+        assertEquals(true, player.speaker)
+
+        voice.stopChat()
+        voice.chat.first { it.phase == VoicePhase.Off }
+    }
+
+    /** A car's call channel that won't open: the chat has the usual route, which still reaches it. */
+    @Test
+    fun aVoiceChatThatCantPlayAsACallHasTheUsualRoute() = runTest {
+        val recorder = ListeningRecorder()
+        val player = RoutedPlayer(canCall = false)
+        val voice = VoiceController(audio("unused", Requests()), recorder, player, backgroundScope, backgroundScope)
+
+        voice.startChat(offlineSession(), gateway, null, asCall = true)
+        recorder.listening.await()
+        assertEquals(1, player.calls)
+        assertEquals(1, player.chats)
+
+        voice.stopChat()
+        voice.chat.first { it.phase == VoicePhase.Off }
+        assertTrue(player.chatClosed)
     }
 
     /** A chat that never connects: these voice chats end before anything is sent. */
